@@ -1,0 +1,659 @@
+<title>Brick by Brick</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=Saira+Stencil+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --ground:#D8D4CC; --panel:#F4F2ED; --ink:#1E2226; --muted:#595E65; --hair:#C3BEB4;
+  --hivis:#F5B400; --brick:#A8432A; --ok:#2F7A48; --warn:#B4441F;
+  --display:'Saira Stencil One','Barlow Semi Condensed',Impact,sans-serif;
+  --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --label:'Barlow Semi Condensed','Barlow',system-ui,sans-serif;
+}
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+.app{max-width:1220px;margin:0 auto;padding-inline:16px;padding-block:14px 32px}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+
+.bar{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px 20px;padding-block:4px 14px}
+.brand h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4.4vw,42px);line-height:1;margin:0;letter-spacing:.01em}
+.brand p{margin:4px 0 0;color:var(--muted);font-size:14px;max-width:46ch}
+.stats{display:flex;flex-wrap:wrap;gap:6px}
+.stat{background:var(--panel);border:2px solid var(--ink);padding:4px 10px 5px;min-width:84px}
+.stat .l{display:block;font-family:var(--label);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.11em;color:var(--muted)}
+.stat .v{font-family:var(--label);font-weight:700;font-size:19px;font-variant-numeric:tabular-nums;line-height:1.15}
+.meter{height:9px;width:110px;margin-top:6px;border:1.5px solid var(--ink);background:#DDD9D0}
+.meter i{display:block;height:100%;background:var(--hivis);transition:width .15s}
+.meter.low i{background:var(--warn)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+.stage{position:relative;border:2px solid var(--ink);background:#86B4D6;overflow:hidden}
+.stage::before{content:'';position:absolute;inset:0 0 auto 0;height:10px;z-index:1;
+  background:repeating-linear-gradient(-45deg,var(--hivis) 0 14px,var(--ink) 14px 28px)}
+canvas{display:block;width:100%;height:clamp(250px,46vw,470px);cursor:pointer;touch-action:manipulation}
+.toast{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:2;max-width:calc(100% - 32px);
+  background:var(--ink);color:var(--panel);font-family:var(--label);font-weight:600;font-size:15px;padding:7px 14px;text-align:center}
+.toast.show{animation:pop .25s ease-out}
+@keyframes pop{from{transform:translate(-50%,-6px);opacity:0}}
+
+.projects{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.proj{display:grid;text-align:left;background:var(--panel);border:2px solid var(--ink);padding:5px 12px 6px;min-width:112px}
+.proj .pk{font-family:var(--label);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.proj .pn{font-weight:700}
+.proj .ps{font-family:var(--label);font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.proj[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.proj[aria-pressed="true"] .pk,.proj[aria-pressed="true"] .ps{color:#C9C5BC}
+.proj:disabled{cursor:not-allowed;border-style:dashed;opacity:.55}
+.proj.built .ps{color:var(--ok)}
+.proj.built[aria-pressed="true"] .ps{color:#8FD3A4}
+
+.task{background:var(--panel);border:2px solid var(--ink);margin-top:12px;padding:14px 16px 16px;display:grid;gap:12px}
+.task-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:6px 16px}
+.eyebrow{font-family:var(--label);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.task h2{font-family:var(--display);font-weight:400;font-size:clamp(22px,3vw,30px);line-height:1.1;margin:2px 0 0;text-wrap:balance}
+.pay{font-family:var(--label);font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.progress{height:16px;border:2px solid var(--ink);background:#E4DFD5}
+.progress i{display:block;height:100%;background:repeating-linear-gradient(90deg,var(--brick) 0 24px,#E9DFCC 24px 26px)}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.work{font-family:var(--display);font-size:26px;line-height:1;background:var(--hivis);border:2px solid var(--ink);
+  padding:12px 30px 13px;box-shadow:0 4px 0 var(--ink);transition:transform .05s}
+.work:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.work:disabled{background:#CFCBC3;color:var(--muted);cursor:not-allowed}
+.work kbd{font-family:var(--label);font-size:12px;vertical-align:middle;border:1.5px solid currentColor;padding:1px 5px;margin-left:8px;letter-spacing:.05em}
+.blocker{font-family:var(--label);font-size:15px;font-weight:500;flex:1 1 220px}
+.need{background:transparent;border:1.5px dashed var(--warn);color:var(--warn);font-weight:700;padding:2px 9px;margin:2px 2px 2px 0}
+.tired{color:var(--warn);font-weight:700}
+.hint{color:var(--muted)}
+.note{border-top:2px dashed var(--hair);padding-top:10px}
+.note p{margin:4px 0 0;max-width:68ch}
+
+.side{display:grid;gap:12px}
+.panel{background:var(--panel);border:2px solid var(--ink)}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:2px solid var(--ink)}
+.tab{position:relative;background:transparent;border:0;border-right:1.5px solid var(--ink);padding:9px 4px;
+  font-family:var(--label);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:13px}
+.tab:last-child{border-right:0}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--panel)}
+.tab.alert::after{content:'';position:absolute;top:6px;right:8px;width:8px;height:8px;background:var(--warn);border-radius:50%}
+.list{padding:2px 14px 6px}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--hair)}
+.item:last-child{border-bottom:0}
+.in{font-weight:700;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.id{font-size:13.5px;color:var(--muted);line-height:1.35;margin-top:1px}
+.tag{font-family:var(--label);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:1px 6px}
+.tag.need{margin:0;border:1.5px solid var(--warn);color:var(--warn)}
+.tag.boost{background:var(--hivis);color:var(--ink)}
+.buy{font-family:var(--label);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;min-width:82px;padding:7px 10px;
+  background:var(--panel);border:2px solid var(--ink);white-space:nowrap}
+.buy:hover:not(:disabled){background:var(--hivis)}
+.buy:disabled{opacity:.45;cursor:not-allowed}
+.is-owned .buy{opacity:1;border-color:var(--ok);color:var(--ok)}
+.is-owned .in{color:var(--muted)}
+
+.order{padding:12px 16px 14px}
+.order ol{margin:8px 0 0;padding-left:22px;display:grid;gap:4px}
+.order li{padding-left:2px}
+.order li::marker{font-family:var(--label);font-weight:700;font-variant-numeric:tabular-nums}
+.order li.done{color:var(--muted)}
+.order li.done::after{content:' ✓';color:var(--ok);font-weight:700}
+.order li.cur{font-weight:700}
+.order small{display:block;font-weight:500;color:var(--warn);font-size:12.5px}
+.reset{justify-self:start;background:transparent;border:0;color:var(--muted);font-size:13px;text-decoration:underline;padding:2px 0}
+@media (prefers-reduced-motion:reduce){.toast.show{animation:none}.work{transition:none}}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand">
+      <h1>Brick by Brick</h1>
+      <p>Start with bare hands and a pile of bricks. Earn, eat, train, learn, and build.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="l">Cash</span><span class="v" id="money">€0</span></div>
+      <div class="stat"><span class="l">Energy <span id="energyNum"></span></span><div class="meter" id="meter"><i id="energyBar"></i></div></div>
+      <div class="stat"><span class="l">Strength</span><span class="v" id="str">0</span></div>
+      <div class="stat"><span class="l">Per swing</span><span class="v" id="power">1</span></div>
+      <div class="stat"><span class="l">Crew</span><span class="v" id="crew">0</span></div>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section>
+      <div class="stage">
+        <canvas id="cv" role="img" aria-label="First-person view of the building site"></canvas>
+        <div id="toast" class="toast" aria-live="polite" hidden></div>
+      </div>
+      <nav class="projects" id="projects" aria-label="Projects"></nav>
+      <div class="task">
+        <div class="task-head">
+          <div><div class="eyebrow" id="stepNo"></div><h2 id="stepName"></h2></div>
+          <div class="pay" id="stepPay"></div>
+        </div>
+        <div class="progress"><i id="stepBar"></i></div>
+        <div class="actions">
+          <button id="workBtn" class="work">Work<kbd>Space</kbd></button>
+          <div class="blocker" id="blocker"></div>
+        </div>
+        <div class="note"><div class="eyebrow">Site note</div><p id="tip"></p></div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="panel">
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" data-tab="body">Body</button>
+          <button class="tab" role="tab" data-tab="tools">Tools</button>
+          <button class="tab" role="tab" data-tab="skills">Skills</button>
+          <button class="tab" role="tab" data-tab="crew">Crew</button>
+        </div>
+        <div class="list" id="shopList"></div>
+      </div>
+      <div class="panel order">
+        <div class="eyebrow" id="orderTitle">Build order</div>
+        <ol id="order"></ol>
+      </div>
+      <button class="reset" id="resetBtn">Reset game</button>
+    </aside>
+  </main>
+</div>
+
+<script>
+const TOOLS={
+  tape:{n:'Tape & string line',p:10,d:'Measure and mark out a plot.'},
+  gloves:{n:'Work gloves',p:15,d:'+1 power on every job. Your hands will thank you.'},
+  shovel:{n:'Shovel',p:25,d:'For digging trenches and moving gravel.'},
+  hammer:{n:'Claw hammer',p:30,d:'For timber framing.'},
+  trowel:{n:'Trowel & spirit level',p:45,d:'For mortar and bricks, and keeping it all level.'},
+  barrow:{n:'Wheelbarrow',p:60,d:'×3 on hauling and digging.'},
+  ladder:{n:'Ladder',p:120,d:'For any work at height.'},
+  mixer:{n:'Cement mixer',p:250,d:'×3 on concrete and mortar work.'},
+  drill:{n:'Drill + mixing paddle',p:300,d:'×3 on fitting, plastering and bolting steel.'},
+  nailer:{n:'Nail gun',p:400,d:'×3 on roof carpentry.'},
+  laptop:{n:'Laptop',p:800,d:'Plan jobs in CAD and schedule a crew.'},
+  compactor:{n:'Plate compactor',p:900,d:'Compacts sub-base and pavers.'},
+  crane:{n:'Crane hire',p:8000,d:'Lifts steel and precast concrete.'},
+};
+const SKILLS={
+  concrete:{n:'Concrete basics',p:80,s:5,d:'Mix, pour and cure concrete.'},
+  brick:{n:'Bricklaying course',p:200,s:8,d:'Lay level, bonded brick walls.'},
+  carpentry:{n:'Carpentry course',p:450,s:10,d:'Build and fix roof trusses.'},
+  paving:{n:'Paving course',p:1200,s:12,d:'Lay pavers on sand, to a fall.'},
+  degree:{n:'Civil engineering degree',p:3000,s:30,d:'×2 power for you and your crew. Needed to run big sites.'},
+};
+const P={
+  house:{name:'House',kind:'Main build',done:'House finished! The courtyard is unlocked.',
+    reward:'Four walls, a roof and a front door. Next up: a paved courtyard.',steps:[
+    {n:'Haul bricks to the site',work:40,rate:.6,bonus:10,boost:'barrow',hold:'brick',
+     tip:'A German standard brick (NF format) measures 240 × 115 × 71 mm. A single-skin wall uses roughly 50 of them per square metre, so even a small house needs thousands. Stack them on pallets near where the walls will go, so nobody carries them twice.'},
+    {n:'Mark out the plot',work:20,rate:.8,bonus:10,needs:['tape'],hold:'tape',
+     tip:'Use the 3-4-5 rule to get square corners: measure 3 m along one side and 4 m along the other. If the diagonal between them is exactly 5 m, the corner is 90°. String lines are tied to profile boards set back from the dig, so they survive the digging.'},
+    {n:'Dig the foundation trench',work:80,rate:.6,bonus:25,needs:['shovel'],boost:'barrow',hold:'shovel',
+     tip:'Foundations have to go below the frost line, which is about 80 cm deep in most of Germany. If they sit higher, water in the soil freezes, expands and lifts the house. Keep the trench sides straight and its bottom level.'},
+    {n:'Pour the concrete footing',work:100,rate:.8,bonus:40,needs:['concrete'],boost:'mixer',hold:'bucket',
+     tip:'Concrete is cement, sand, gravel and water. A common footing mix is about 1 : 2 : 4 (cement : sand : gravel). Extra water makes it easier to pour but weaker once it sets. Keep it damp while it cures. It reaches most of its design strength after about 28 days.'},
+    {n:'Lay the damp-proof course',work:30,rate:1,bonus:20,needs:['trowel'],hold:'trowel',
+     tip:'A damp-proof course (DPC) is a waterproof strip bedded into the wall at least 15 cm above ground level. It stops ground moisture from creeping up through the bricks. Without one, you get damp walls, flaking plaster and mould.'},
+    {n:'Build the brick walls',work:300,rate:.8,bonus:100,needs:['brick','trowel'],boost:'mixer',hold:'trowel',
+     tip:'Stretcher bond offsets each row by half a brick, so vertical joints never line up and the load spreads out. Mortar joints are about 10 mm thick, and a typical mortar mix is 1 part cement to 4–5 parts sand. Build up the corners first, stretch a line between them, and check each course with the spirit level.'},
+    {n:'Set the lintels',work:60,rate:1.2,bonus:50,hold:'brick',
+     tip:'A lintel is a beam that carries the bricks above a window or door opening. Each end should rest at least 15 cm on solid wall. Otherwise the load has nowhere to go and the brickwork above it cracks.'},
+    {n:'Raise the roof trusses',work:200,rate:1.2,bonus:120,needs:['carpentry','ladder','hammer'],boost:'nailer',hold:'hammer',
+     tip:'Roof trusses are built from triangles, because a triangle can\'t change shape unless one of its members stretches or breaks. They are usually spaced about 60 cm apart and strapped down to a timber wall plate, so wind can\'t lift the roof.'},
+    {n:'Tile the roof',work:250,rate:1.2,bonus:150,needs:['ladder'],boost:'nailer',hold:'hammer',
+     tip:'Battens are nailed across the trusses first, over a breathable membrane. Tiles are then hung from the bottom edge (the eaves) upwards, so each row overlaps the row below. That way rain always runs over a joint and never into it.'},
+    {n:'Fit windows and doors',work:150,rate:1.5,bonus:150,boost:'drill',hold:'drill',
+     tip:'Frames sit in the opening with a gap of roughly 10 mm all round. The gap is packed, fixed and sealed with tape and foam, so the house stays airtight. Before fixing anything, check that the frame is plumb and level.'},
+    {n:'Plaster and paint',work:200,rate:1.5,bonus:300,boost:'drill',hold:'brush',
+     tip:'Plaster goes on in thin coats and is trowelled smooth as it firms up. New plaster must dry out completely before you paint it, which can take weeks. The first coat on bare plaster is a thinned "mist coat" that soaks in and gives the paint something to grip.'},
+  ]},
+  coop:{name:'Chicken coop',kind:'Side quest',done:'Coop built! Your hens lay eggs: +€0.50/s and faster energy.',
+    reward:'Your hens lay eggs: +€0.50 per second from selling them, and fresh protein refills your energy faster.',steps:[
+    {n:'Level a gravel base',work:40,rate:.8,bonus:15,needs:['shovel'],boost:'barrow',hold:'shovel',
+     tip:'Build on a level, well-drained base like gravel or paving slabs, raised above the surrounding soil. A damp floor makes for sick hens and rotten timber.'},
+    {n:'Build the timber frame',work:80,rate:1,bonus:25,needs:['hammer'],hold:'hammer',
+     tip:'Use pressure-treated timber for anything that touches the ground. Screws hold better than nails in wood that swells and shrinks with the weather. Brace the corners with diagonals, the same triangle trick used in roof trusses.'},
+    {n:'Fix the wire mesh',work:60,rate:1,bonus:20,needs:['hammer'],hold:'hammer',
+     tip:'Use welded wire mesh, not chicken wire, because a fox can tear through chicken wire. Bury the mesh about 30 cm deep, or lay an apron of it flat outside the walls, so predators can\'t dig underneath.'},
+    {n:'Put the roof on',work:50,rate:1,bonus:20,needs:['hammer'],hold:'hammer',
+     tip:'Slope the roof and let it overhang, so rain drips clear of the walls. Leave vents up high: hens need fresh air, but not a draught at perch height.'},
+    {n:'Nest boxes and perches',work:40,rate:1.2,bonus:60,needs:['hammer'],hold:'hammer',
+     tip:'Plan about one nest box for every 4–5 hens. Put the perches higher than the nest boxes, or the hens will sleep in the nests and foul them.'},
+  ]},
+  courtyard:{name:'Courtyard',kind:'Main build',after:'house',done:'Courtyard paved! The stadium contract is open.',
+    reward:'Paved and draining. Big clients have noticed: the stadium contract is open.',steps:[
+    {n:'Dig out the courtyard',work:300,rate:1.5,bonus:100,needs:['shovel'],boost:'barrow',hold:'shovel',
+     tip:'A patio needs about 20–25 cm dug out: a gravel sub-base, a sand bed and the pavers themselves. Strip all topsoil and roots, because organic material rots and the surface sinks.'},
+    {n:'Compact the sub-base',work:200,rate:1.5,bonus:100,needs:['compactor'],hold:'shovel',
+     tip:'Lay the gravel sub-base in layers of about 10 cm and compact each layer with a plate compactor. Build in a fall of about 1 : 60 away from the house, so rainwater drains off rather than towards the walls.'},
+    {n:'Set the edging',work:150,rate:2,bonus:100,needs:['trowel'],boost:'mixer',hold:'trowel',
+     tip:'Edging stones bedded in concrete hold the pavers in place. Without them, the pavers slowly creep outwards under foot and wheel traffic.'},
+    {n:'Screed the sand bed',work:150,rate:2,bonus:100,hold:'shovel',
+     tip:'Spread a 3–5 cm bed of sand and screed it flat by pulling a straight board along two guide rails. Once it is screeded, don\'t walk on it.'},
+    {n:'Lay the pavers',work:500,rate:2,bonus:200,needs:['paving'],hold:'brick',
+     tip:'Lay pavers from a fixed edge and work forwards, kneeling on the ones already laid. A herringbone pattern locks the blocks together best, which is why driveways use it. Leave joints of 2–3 mm.'},
+    {n:'Sand the joints and compact',work:150,rate:2,bonus:1000,needs:['compactor'],hold:'brush',
+     tip:'Brush dry, fine sand into the joints. Then run the plate compactor over the surface on a rubber mat to bed the pavers in, and top up the sand. The sand in the joints is what locks the whole surface together.'},
+  ]},
+  stadium:{name:'Stadium',kind:'Big contract',after:'courtyard',done:'Stadium open. From carrying bricks by hand to the biggest site in town.',
+    reward:'From carrying bricks by hand to running the biggest site in town. You built all of it.',steps:[
+    {n:'Survey the ground',work:400,rate:3,bonus:300,needs:['degree','laptop'],hold:'tape',
+     tip:'Before a big build, engineers drill boreholes and test the soil to find out how much load it can carry. That data drives every foundation decision, and it is worked through on a computer long before anyone digs.'},
+    {n:'Bore the piles',work:1500,rate:3,bonus:600,boost:'mixer',hold:'bucket',
+     tip:'Piles are long columns of concrete or steel bored or driven deep into the ground. They carry heavy loads down past weak soil to firmer layers, or they hold them up by friction along their length.'},
+    {n:'Erect the steel frame',work:2000,rate:3.5,bonus:800,needs:['crane'],boost:'drill',hold:'drill',
+     tip:'Steel columns and beams arrive cut and drilled, and are bolted together on site. Temporary bracing keeps the frame stable until the floors and connections are complete.'},
+    {n:'Lift in the terraces',work:2000,rate:3.5,bonus:800,needs:['crane'],hold:'hammer',
+     tip:'The stepped terrace units are precast: made in a factory, then lifted in by crane. That is faster and more precise than pouring concrete in mid-air.'},
+    {n:'Build the roof canopy',work:1500,rate:4,bonus:1000,needs:['crane','ladder'],boost:'drill',hold:'drill',
+     tip:'Stadium roofs are often cantilevered, meaning they are supported at one end only, so no columns block anyone\'s view. The back of the roof is tied down hard to balance the overhang.'},
+    {n:'Lay the pitch and drains',work:1200,rate:4,bonus:3000,boost:'compactor',hold:'shovel',
+     tip:'A pro pitch sits on layers: drainage pipes, gravel, then a sandy root zone for the grass. It has to drain heavy rain fast enough for a match to go ahead.'},
+  ]},
+};
+const ORDER=['house','coop','courtyard','stadium'];
+const NEXT_PREF=['house','courtyard','stadium','coop'];
+const KEY='brick-by-brick-v1';
+
+const $=id=>document.getElementById(id);
+const fmt=n=>'€'+Math.floor(n).toLocaleString('en-US');
+const fmtc=n=>n<10?'€'+n.toFixed(2).replace(/\.?0+$/,''):fmt(n);
+const r1=n=>Math.round(n*10)/10;
+const labelOf=k=>(TOOLS[k]||SKILLS[k]).n;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function setHTML(el,h){if(el._h!==h){el._h=h;el.innerHTML=h;}}
+
+function newState(){const prog={};ORDER.forEach(id=>prog[id]={i:0,w:0});
+  return {money:0,energy:100,str:0,shakes:0,crew:0,owned:{},cur:'house',prog,busy:null,hens:false};}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function load(){try{return JSON.parse(localStorage.getItem(KEY));}catch(e){return null;}}
+
+let S, tab='tools';
+const step=(id=S.cur)=>{const p=P[id],pr=S.prog[id];return pr.i<p.steps.length?p.steps[pr.i]:null;};
+const isDone=id=>!P[id].repeat&&S.prog[id].i>=P[id].steps.length;
+const unlocked=id=>!P[id].after||isDone(P[id].after);
+const missing=st=>(st.needs||[]).filter(k=>!S.owned[k]);
+const mult=st=>(st&&st.boost&&S.owned[st.boost]?3:1)*(S.owned.degree?2:1);
+const power=st=>(1+S.str+(S.owned.gloves?1:0))*mult(st);
+const crewRate=st=>S.crew*2*mult(st);
+const shakePrice=()=>Math.round(20*Math.pow(1.45,S.shakes));
+const crewPrice=()=>Math.round(300*Math.pow(1.5,S.crew));
+
+let tt;
+function toast(m){const el=$('toast');el.textContent=m;el.hidden=false;el.classList.remove('show');void el.offsetWidth;el.classList.add('show');
+  clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,2800);}
+
+function setCur(id){S.cur=id;updateUI();}
+
+function addWork(id,u){
+  const p=P[id],pr=S.prog[id],st=step(id);if(!st)return 0;
+  const take=Math.min(u,st.work-pr.w);
+  pr.w+=take;let got=take*st.rate;S.money+=got;
+  if(pr.w>=st.work-1e-9){
+    S.money+=st.bonus;got+=st.bonus;pr.w=0;
+    if(!p.repeat){
+      pr.i++;
+      if(pr.i>=p.steps.length){
+        toast(p.done);
+        if(id==='coop')S.hens=true;
+        const nx=NEXT_PREF.find(q=>unlocked(q)&&!isDone(q));
+        if(nx&&id===S.cur)S.cur=nx;
+      }else toast(`${st.n}: done. +${fmt(st.bonus)} bonus`);
+    }
+    save();
+  }
+  return got;
+}
+
+function work(){
+  if(S.busy)return;
+  const st=step();if(!st)return;
+  if(S.energy<2){toast('Out of energy. Eat a meal or rest.');return;}
+  S.energy-=2;
+  // blocked step: odd jobs on site for small pay, so you can never get stuck broke
+  const got=missing(st).length?(S.money+=power(null)*.25,power(null)*.25):addWork(S.cur,power(st));
+  fx.swing=performance.now();burst(got);
+  updateUI();
+}
+
+function priceOf(k){
+  if(k==='meal')return 5; if(k==='shake')return shakePrice(); if(k==='rest')return 0; if(k==='crew')return crewPrice();
+  return (TOOLS[k]||SKILLS[k]).p;
+}
+function buy(k){
+  const price=priceOf(k);if(S.money<price)return;
+  if((k==='rest'||SKILLS[k])&&S.busy)return;
+  if(k==='meal')S.energy=Math.min(100,S.energy+40);
+  else if(k==='shake'){S.str++;S.shakes++;S.energy=Math.min(100,S.energy+15);toast(`Strength ${S.str}. You can feel it in your arms.`);}
+  else if(k==='rest')S.busy={k,label:'Resting',t0:Date.now(),dur:4000};
+  else if(k==='crew'){S.crew++;toast('Apprentice hired. They keep working while you rest or study.');}
+  else if(SKILLS[k])S.busy={k,label:'Studying: '+SKILLS[k].n,t0:Date.now(),dur:SKILLS[k].s*1000};
+  else{S.owned[k]=true;toast(TOOLS[k].n+' bought.');}
+  S.money-=price;updateUI();save();
+}
+function finishBusy(){
+  const b=S.busy;S.busy=null;
+  if(b.k==='rest')S.energy=100;
+  else{S.owned[b.k]=true;toast('Learned: '+SKILLS[b.k].n+'.');}
+  save();
+}
+
+/* ---------- UI ---------- */
+ORDER.forEach(id=>{
+  const b=document.createElement('button');b.className='proj';b.id='proj-'+id;
+  b.innerHTML=`<span class="pk"></span><span class="pn">${P[id].name}</span><span class="ps"></span>`;
+  b.onclick=()=>{if(unlocked(id))setCur(id);};
+  $('projects').appendChild(b);
+});
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;updateUI();});
+$('shopList').addEventListener('click',e=>{const b=e.target.closest('[data-buy]');if(b&&!b.disabled)buy(b.dataset.buy);});
+$('blocker').addEventListener('click',e=>{const b=e.target.closest('[data-jump]');if(b){tab=b.dataset.jump;updateUI();}});
+$('workBtn').onclick=work;
+$('cv').addEventListener('click',work);
+document.addEventListener('keydown',e=>{
+  if(e.code!=='Space'||e.repeat)return;
+  if(e.target.closest&&e.target.closest('button,input,textarea,select'))return;
+  e.preventDefault();work();
+});
+let resetArmed=0;
+$('resetBtn').onclick=()=>{
+  if(Date.now()-resetArmed<3000){S=newState();save();resetArmed=0;$('resetBtn').textContent='Reset game';toast('Fresh start. Grab a brick.');updateUI();return;}
+  resetArmed=Date.now();$('resetBtn').textContent='Click again to wipe all progress';
+  setTimeout(()=>{if(resetArmed&&Date.now()-resetArmed>=3000){resetArmed=0;$('resetBtn').textContent='Reset game';}},3100);
+};
+
+function itemHTML(k,name,desc,price,o={}){
+  const busyBlock=o.busyType&&!!S.busy;
+  const dis=o.owned||o.lock||busyBlock||S.money<price;
+  const label=o.owned?'Owned':o.lock?'Locked':busyBlock?'Busy':price===0?'Free':fmt(price)+(o.secs?` · ${o.secs}s`:'');
+  const tag=o.tag?`<span class="tag ${o.tag[0]}">${o.tag[1]}</span>`:'';
+  return `<div class="item${o.owned?' is-owned':''}"><div><div class="in">${name}${tag}</div><div class="id">${o.lock||desc}</div></div>`+
+    `<button class="buy" data-buy="${k}"${dis?' disabled':''}>${label}</button></div>`;
+}
+function shopHTML(st){
+  const need=new Set(st?missing(st):[]), boost=st&&st.boost&&!S.owned[st.boost]?st.boost:null;
+  const tagFor=k=>need.has(k)?['need','Needed now']:k===boost?['boost','×3 this step']:null;
+  if(tab==='body')return itemHTML('meal','Hot meal','+40 energy.',5)+
+    itemHTML('shake','Protein shake',`+1 strength (now ${S.str}). Bigger arms, more work per swing.`,shakePrice())+
+    itemHTML('rest','Rest','Sit down for 4 seconds. Energy back to full.',0,{busyType:1});
+  if(tab==='tools')return Object.entries(TOOLS).map(([k,t])=>itemHTML(k,t.n,t.d,t.p,{owned:S.owned[k],tag:tagFor(k)})).join('');
+  if(tab==='skills')return Object.entries(SKILLS).map(([k,t])=>itemHTML(k,t.n,t.d,t.p,{owned:S.owned[k],tag:tagFor(k),secs:t.s,busyType:1})).join('');
+  return itemHTML('crew','Hire an apprentice',`Works 2 units per second on your current job, even while you rest or study. Crew now: ${S.crew}.`,crewPrice(),
+    {lock:S.owned.laptop?null:'Buy a laptop first (Tools) to schedule a crew.'});
+}
+
+function updateUI(){
+  const p=P[S.cur],pr=S.prog[S.cur],st=step();
+  $('money').textContent=fmt(S.money);
+  $('energyBar').style.width=S.energy+'%';$('energyNum').textContent=Math.floor(S.energy);
+  $('meter').classList.toggle('low',S.energy<20);
+  $('str').textContent=S.str;
+  $('power').textContent=r1(power(st));
+  $('crew').textContent=S.crew?`${S.crew} · ${r1(crewRate(st))}/s`:'0';
+
+  ORDER.forEach(id=>{
+    const b=$('proj-'+id),q=P[id],lock=!unlocked(id);
+    b.querySelector('.pk').textContent=q.kind;
+    b.querySelector('.ps').textContent=lock?'After '+P[q.after].name:q.repeat?'Always open':isDone(id)?'Built':`${S.prog[id].i} / ${q.steps.length}`;
+    b.disabled=lock;b.setAttribute('aria-pressed',id===S.cur);b.classList.toggle('built',isDone(id));
+  });
+
+  $('stepNo').textContent=st?`${p.kind} · Step ${pr.i+1} of ${p.steps.length}`:`${p.kind} · Complete`;
+  $('stepName').textContent=st?st.n:p.name+' built';
+  $('stepBar').style.width=(st?pr.w/st.work*100:100)+'%';
+  $('stepPay').textContent=st?`${fmtc(st.rate)} per unit · ${fmt(st.bonus)} on finish`:'';
+  $('tip').textContent=st?st.tip:p.reward;
+  $('cv').setAttribute('aria-label','First-person view of the site: '+(st?st.n:p.name+' finished'));
+
+  const m=st?missing(st):[];
+  let bh='';
+  if(S.busy)bh=`<span class="hint">${S.busy.label}…</span>`;
+  else if(st&&m.length)bh='Needs '+m.map(k=>`<button class="need" data-jump="${TOOLS[k]?'tools':'skills'}">${labelOf(k)}</button>`).join('')+'<br><span class="hint">Until then, Work does odd jobs on site for small pay.</span>';
+  else if(st&&S.energy<2)bh='<span class="tired">Out of energy. Eat a meal or rest (Body tab).</span>';
+  else if(st&&st.boost&&!S.owned[st.boost])bh=`<span class="hint">A ${labelOf(st.boost).toLowerCase()} makes this step 3× faster.</span>`;
+  setHTML($('blocker'),bh);
+  $('workBtn').disabled=!st||!!S.busy||S.energy<2;
+  setHTML($('workBtn'),(st&&m.length?'Odd jobs':'Work')+'<kbd>Space</kbd>');
+
+  document.querySelectorAll('.tab').forEach(b=>{
+    const t=b.dataset.tab;b.setAttribute('aria-selected',t===tab);
+    b.classList.toggle('alert',m.some(k=>t==='tools'?TOOLS[k]:t==='skills'?SKILLS[k]:false)||(t==='body'&&S.energy<10));
+  });
+  setHTML($('shopList'),shopHTML(st));
+
+  $('orderTitle').textContent='Build order · '+p.name;
+  setHTML($('order'),p.steps.map((s,k)=>{
+    const cls=p.repeat?'cur':k<pr.i?'done':k===pr.i?'cur':'';
+    const need=!p.repeat&&k>=pr.i?(s.needs||[]).filter(n=>!S.owned[n]):[];
+    return `<li class="${cls}">${s.n}${need.length?`<small>needs ${need.map(labelOf).join(', ')}</small>`:''}</li>`;
+  }).join(''));
+}
+
+/* ---------- Canvas: first-person site view ---------- */
+const cv=$('cv'),cx=cv.getContext('2d');let W=0,H=0;
+function fit(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;W=r.width;H=r.height;cv.width=Math.round(W*d);cv.height=Math.round(H*d);cx.setTransform(d,0,0,d,0,0);}
+new ResizeObserver(fit).observe(cv);
+
+const C={sky1:'#86B4D6',sky2:'#DCE9EF',hill:'#9CAF8C',earth1:'#C8A777',earth2:'#A5814F',brick:'#A8432A',mortar:'rgba(236,226,208,.6)',
+  conc:'#9B988F',timber:'#C29560',steel:'#56616A',plaster:'#EDE5D3',glass:'#BCD7E4',door:'#7A4E2D',tile:'#86301F',
+  skin:'#C68B5E',skinD:'#AE7449',sleeve:'#EE6A1F',refl:'#DADFE2',glove:'#E0A22B',gloveD:'#C98B17'};
+function R(x,y,w,h,c){cx.fillStyle=c;cx.fillRect(x,y,w,h);}
+function poly(pts){cx.beginPath();pts.forEach((p,i)=>i?cx.lineTo(p[0],p[1]):cx.moveTo(p[0],p[1]));cx.closePath();}
+function lines(ms,n,c,w){cx.strokeStyle=c;cx.lineWidth=w;cx.lineCap='round';cx.beginPath();ms.slice(0,n).forEach(([a,b])=>{cx.moveTo(a[0],a[1]);cx.lineTo(b[0],b[1]);});cx.stroke();}
+function trace(pts,fr,closed){
+  const n=closed?pts.length:pts.length-1,seg=[];let tot=0;
+  for(let i=0;i<n;i++){const a=pts[i],b=pts[(i+1)%pts.length],l=Math.hypot(b[0]-a[0],b[1]-a[1]);seg.push([a,b,l]);tot+=l;}
+  let left=tot*fr;cx.beginPath();cx.moveTo(pts[0][0],pts[0][1]);
+  for(const [a,b,l] of seg){if(left<=0)break;const k=Math.min(1,left/l);cx.lineTo(a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k);left-=l;}
+  cx.stroke();
+}
+function pile(x,y,a,s){
+  let n=Math.round(a*15);R(x-42*s,y,84*s,5*s,'#8A6A45');
+  for(let row=5,r=0;row>0&&n>0;row--,r++)for(let c=0;c<row&&n>0;c++,n--){
+    const bx=x-row*7.5*s+c*15*s,by=y-(r+1)*7*s;R(bx,by,14*s,6*s,C.brick);
+    cx.strokeStyle='rgba(0,0,0,.2)';cx.lineWidth=1;cx.strokeRect(bx,by,14*s,6*s);
+  }
+}
+function miniHouse(x,base,w){const h=w*.42;R(x-w/2,base-h,w,h,C.plaster);cx.fillStyle=C.tile;poly([[x-w*.56,base-h],[x+w*.56,base-h],[x,base-h-w*.3]]);cx.fill();
+  R(x-w*.07,base-h*.62,w*.14,h*.62,C.door);R(x-w*.4,base-h*.8,w*.18,h*.35,C.glass);R(x+w*.22,base-h*.8,w*.18,h*.35,C.glass);}
+
+const SCENE={
+  house(f){
+    const s=H/450,bw=W*.42,x0=W/2-bw/2,gy=H*.72,wallH=H*.26,base=gy-5*s,top=base-wallH,roofH=H*.16,pad=bw*.07;
+    const plot=[[x0-pad,gy-7*s],[x0+bw+pad,gy-7*s],[x0+bw+pad*2,gy+14*s],[x0-pad*2,gy+14*s]];
+    cx.lineJoin='round';
+    if(f(2)>0){cx.strokeStyle=`rgba(70,48,30,${f(2)})`;cx.lineWidth=11*s;trace(plot,1,true);}
+    if(f(3)>0){cx.strokeStyle=C.conc;cx.lineWidth=8*s;trace(plot,f(3),true);R(x0-pad*.5,base,(bw+pad)*f(3),5*s,C.conc);}
+    if(f(1)>0){cx.strokeStyle='#F6F2E6';cx.lineWidth=1.5;trace(plot,f(1),true);plot.forEach(([x,y])=>R(x-2*s,y-10*s,4*s,12*s,C.timber));}
+    pile(x0+bw+pad*2+26*s,gy-6*s,f(0)*(1-f(5)),s*1.1);
+
+    const O=[{x:x0+bw*.1,w:bw*.2,y:top+wallH*.2,h:wallH*.36},{x:W/2-bw*.08,w:bw*.16,y:base-wallH*.62,h:wallH*.62},{x:x0+bw*.7,w:bw*.2,y:top+wallH*.2,h:wallH*.36}];
+    const h=wallH*f(5);
+    if(h>0){
+      const y1=base-h;R(x0,y1,bw,h,C.brick);
+      const ch=wallH/20,bl=ch*3.3;cx.strokeStyle=C.mortar;cx.lineWidth=1;cx.beginPath();
+      for(let r=0;r*ch<h;r++){const yb=base-r*ch,yt=Math.max(y1,yb-ch);cx.moveTo(x0,yt);cx.lineTo(x0+bw,yt);
+        for(let x=x0+(r%2?bl/2:bl);x<x0+bw;x+=bl){cx.moveTo(x,yb);cx.lineTo(x,yt);}}
+      cx.stroke();
+    }
+    if(f(4)>0)R(x0,base-ch3(wallH),bw*f(4),3*s,'#1E2226');
+    if(h>0){
+      const y1=base-h;
+      if(f(10)>0)R(x0,y1,bw*f(10),h,C.plaster);
+      O.forEach((o,k)=>{const a=Math.max(y1,o.y),b=o.y+o.h;if(b>a){R(o.x,a,o.w,b-a,'#3A2D27');if(f(9)>=(k+1)/3)fitOpening(o,k===1,s);}});
+      O.forEach((o,k)=>{if(f(6)>k/3)R(o.x-6*s,o.y-7*s,o.w+12*s,7*s,'#8D8A84');});
+    }
+    const A=[x0-bw*.05,top],B=[x0+bw*1.05,top],Cc=[W/2,top-roofH];
+    if(f(7)>0){
+      const mid=[W/2,top],q1=[x0+bw*.25,top],q3=[x0+bw*.75,top],m1=[(A[0]+Cc[0])/2,(A[1]+Cc[1])/2],m2=[(B[0]+Cc[0])/2,(B[1]+Cc[1])/2];
+      const ms=[[A,B],[A,Cc],[Cc,B],[mid,Cc],[q1,m1],[q3,m2],[mid,m1],[mid,m2]];
+      lines(ms,Math.ceil(f(7)*ms.length),C.timber,4*s);
+    }
+    if(f(8)>0){
+      cx.save();poly([A,B,Cc]);cx.clip();const th=roofH*f(8)+1,rh=roofH/9;
+      R(A[0],top-th,B[0]-A[0],th,C.tile);
+      cx.strokeStyle='rgba(0,0,0,.25)';cx.lineWidth=1;cx.beginPath();
+      for(let r=1;r*rh<th;r++){const y=top-r*rh;cx.moveTo(A[0],y);cx.lineTo(B[0],y);
+        for(let x=A[0]+(r%2?9*s:0);x<B[0];x+=18*s){cx.moveTo(x,y);cx.lineTo(x,y+rh);}}
+      cx.stroke();cx.restore();
+    }
+  },
+
+  coop(f){
+    const s=H/450,bw=W*.26,x0=W/2-bw/2,gy=H*.78,h=H*.2,x1=x0+bw;
+    if(f(0)>0){R(x0-14*s,gy-3*s,(bw+28*s)*f(0),10*s,'#9C968C');}
+    if(f(2)>0){cx.save();cx.beginPath();cx.rect(x0,gy-h-10*s,bw*f(2),h+7*s);cx.clip();cx.strokeStyle='rgba(55,62,68,.6)';cx.lineWidth=1;cx.beginPath();
+      for(let x=x0;x<x1;x+=7*s){cx.moveTo(x,gy-h-10*s);cx.lineTo(x,gy);}for(let y=gy;y>gy-h-10*s;y-=7*s){cx.moveTo(x0,y);cx.lineTo(x1,y);}cx.stroke();cx.restore();}
+    const ms=[[[x0,gy],[x0,gy-h]],[[x1,gy],[x1,gy-h-10*s]],[[x0,gy-h],[x1,gy-h-10*s]],[[W/2,gy],[W/2,gy-h-5*s]],[[x0,gy-h*.45],[x1,gy-h*.45-5*s]],[[x0,gy],[W/2,gy-h*.45-2.5*s]]];
+    if(f(1)>0)lines(ms,Math.ceil(f(1)*ms.length),C.timber,5*s);
+    if(f(3)>0){const L=[x0-16*s,gy-h+3*s],Rt=[x1+16*s,gy-h-14*s],len=Math.hypot(Rt[0]-L[0],Rt[1]-L[1]);
+      cx.save();cx.translate(L[0],L[1]);cx.rotate(Math.atan2(Rt[1]-L[1],Rt[0]-L[0]));R(0,-9*s,len*f(3),10*s,'#6F7F86');
+      cx.strokeStyle='rgba(255,255,255,.25)';cx.lineWidth=1;cx.beginPath();for(let x=4*s;x<len*f(3);x+=6*s){cx.moveTo(x,-9*s);cx.lineTo(x,1*s);}cx.stroke();cx.restore();}
+    if(f(4)>0){R(x1,gy-h*.55,28*s*f(4),22*s,'#A8743F');if(f(4)>.5){cx.strokeStyle=C.timber;cx.lineWidth=3*s;cx.beginPath();cx.moveTo(x0+6*s,gy-h*.7);cx.lineTo(x1-6*s,gy-h*.7-3*s);cx.stroke();}
+      if(f(4)>.8){cx.beginPath();cx.moveTo(x0-24*s,gy);cx.lineTo(x0,gy-h*.25);cx.stroke();}}
+  },
+
+  courtyard(f){
+    const s=H/450;miniHouse(W/2,H*.53,W*.22);
+    const T=H*.58,B=H,tl=W*.28,tr=W*.72,bl=-W*.02,br=W*1.02;
+    const edge=(y)=>{const q=(y-T)/(B-T);return [tl+(bl-tl)*q,tr+(br-tr)*q];};
+    const band=(k,c)=>{if(k<=0)return;const y=B-(B-T)*k,[l,r]=edge(y);poly([[bl,B],[br,B],[r,y],[l,y]]);cx.fillStyle=c;cx.fill();};
+    band(f(0),'#6E4E33');band(f(1),'#8F8B84');band(f(3),'#D6BE8C');band(f(4),'#B09A80');
+    if(f(4)>0){
+      const N=16,j=f(5);cx.strokeStyle=`rgba(${60+165*j|0},${52+150*j|0},${44+120*j|0},.85)`;cx.lineWidth=1;cx.beginPath();
+      for(let r=0;r<N;r++){const k1=(r+1)/N;if(k1>f(4)+1e-6)break;
+        const y0=B-(B-T)*r/N,y1=B-(B-T)*k1,[l0,r0]=edge(y0),[l1,rr1]=edge(y1);
+        cx.moveTo(l1,y1);cx.lineTo(rr1,y1);
+        for(let c=(r%2?.5:1);c<14;c++){const a=c/14;cx.moveTo(l0+(r0-l0)*a,y0);cx.lineTo(l1+(rr1-l1)*a,y1);}}
+      cx.stroke();
+    }
+    if(f(2)>0){cx.strokeStyle='#5E5A55';cx.lineWidth=7*s;cx.lineJoin='round';trace([[bl,B],[tl,T],[tr,T],[br,B]],f(2),false);}
+  },
+
+  stadium(f){
+    const s=H/450,gy=H*.6,x0=W*.1,x1=W*.9,sw=x1-x0,sh=H*.3,T=gy+6*s,Bt=H;
+    if(S.owned.crane){R(W*.9-3*s,H*.1,6*s,gy-H*.1,'#E0A22B');R(W*.58,H*.1,W*.36,5*s,'#E0A22B');cx.strokeStyle='#333';cx.lineWidth=1;cx.beginPath();cx.moveTo(W*.64,H*.1);cx.lineTo(W*.64,H*.24);cx.stroke();}
+    if(f(1)<1)for(let k=0;k<Math.ceil(f(0)*6);k++){const x=x0+sw*(k+.5)/6;cx.strokeStyle='#E0A22B';cx.lineWidth=2*s;cx.beginPath();cx.moveTo(x-8*s,gy);cx.lineTo(x,gy-22*s);cx.lineTo(x+8*s,gy);cx.stroke();}
+    for(let k=0;k<Math.ceil(f(1)*12);k++)R(x0+sw*(k+.5)/12-3*s,gy-12*s,6*s,12*s,C.conc);
+    if(f(2)>0){const hg=sh*f(2);for(let k=0;k<7;k++)R(x0+sw*k/6-3*s,gy-hg,6*s,hg,C.steel);for(let lv=sh/4;lv<=hg+.5;lv+=sh/4)R(x0,gy-lv,sw,4*s,C.steel);}
+    for(let k=0;k<Math.ceil(f(3)*8);k++){const th=sh/8*.9,ins=k*sw*.012,y=gy-(k+1)*th;R(x0+ins,y,sw-2*ins,th,k%2?'#BDB8AF':'#AAA59C');if(f(3)===1)R(x0+ins,y+2*s,sw-2*ins,3*s,'#2F6DB5');}
+    if(f(4)>0){R(x0-20*s,gy-sh-16*s,(sw+40*s)*f(4),12*s,'#ECEEEF');}
+    const pitch=[[W*.18,T],[W*.82,T],[W*1.05,Bt],[-W*.05,Bt]];
+    poly(pitch);cx.fillStyle='#8A6A48';cx.fill();
+    if(f(5)>0){cx.save();poly(pitch);cx.clip();const y=Bt-(Bt-T)*f(5);
+      for(let k=0;k<10;k++)R(-W*.05,T+(Bt-T)*k/10,W*1.1,(Bt-T)/10+1,k%2?'#4E8C45':'#5A9A50');
+      R(-W*.05,T,W*1.1,y-T,'#8A6A48');cx.restore();
+      if(f(5)===1){cx.strokeStyle='#F4F4EE';cx.lineWidth=2*s;poly([[W*.22,T+8*s],[W*.78,T+8*s],[W*.97,Bt-6*s],[W*.03,Bt-6*s]]);cx.stroke();}}
+  },
+};
+function ch3(wallH){return wallH/20*1.2;}
+function fitOpening(o,door,s){
+  if(door){R(o.x+2*s,o.y+2*s,o.w-4*s,o.h-2*s,C.door);cx.fillStyle='#E0A22B';cx.beginPath();cx.arc(o.x+o.w-7*s,o.y+o.h*.55,2*s,0,7);cx.fill();return;}
+  R(o.x,o.y,o.w,o.h,'#F2F2EE');R(o.x+3*s,o.y+3*s,o.w-6*s,o.h-6*s,C.glass);
+  R(o.x+o.w/2-1.5*s,o.y,3*s,o.h,'#F2F2EE');R(o.x,o.y+o.h/2-1.5*s,o.w,3*s,'#F2F2EE');R(o.x-4*s,o.y+o.h,o.w+8*s,4*s,'#CFCBC2');
+}
+function hens(t){
+  const s=H/450;
+  for(let k=0;k<3;k++){
+    const ph=t/1100+k*2.1,x=W*(.3+.06*k)+Math.sin(ph)*W*.025,y=H*.86+k*5*s,d=Math.cos(ph)>0?1:-1;
+    cx.fillStyle='#F4F1EA';cx.beginPath();cx.ellipse(x,y,12*s,9*s,0,0,7);cx.fill();
+    cx.beginPath();cx.arc(x+10*s*d,y-9*s,5.5*s,0,7);cx.fill();
+    cx.fillStyle='#C8321E';cx.beginPath();cx.arc(x+10*s*d,y-15*s,2.8*s,0,7);cx.fill();
+    cx.fillStyle='#E9A21C';poly([[x+15*s*d,y-10*s],[x+20*s*d,y-8*s],[x+15*s*d,y-6*s]]);cx.fill();
+    cx.strokeStyle='#E9A21C';cx.lineWidth=1.5*s;cx.beginPath();cx.moveTo(x-3*s,y+8*s);cx.lineTo(x-3*s,y+13*s);cx.moveTo(x+3*s,y+8*s);cx.lineTo(x+3*s,y+13*s);cx.stroke();
+  }
+}
+function tool(k){
+  if(k==='brick'){R(-32,-194,64,28,C.brick);cx.strokeStyle='rgba(0,0,0,.2)';cx.lineWidth=2;cx.strokeRect(-32,-194,64,28);}
+  else if(k==='shovel'){R(-4,-300,8,160,'#B98A55');cx.fillStyle='#8C969E';poly([[-24,-300],[24,-300],[20,-345],[0,-362],[-20,-345]]);cx.fill();}
+  else if(k==='trowel'){R(-7,-200,14,42,'#7A4B2A');R(-3,-215,6,16,'#555');cx.fillStyle='#B9C2C8';poly([[0,-212],[-28,-240],[0,-300],[28,-240]]);cx.fill();}
+  else if(k==='hammer'){R(-5,-270,10,130,'#B98A55');R(-34,-286,68,20,'#3C4248');}
+  else if(k==='bucket'){cx.fillStyle='#8E989F';poly([[-34,-224],[34,-224],[28,-164],[-28,-164]]);cx.fill();cx.fillStyle='#A8A59C';cx.beginPath();cx.ellipse(0,-224,34,7,0,0,7);cx.fill();}
+  else if(k==='tape'){cx.fillStyle='#F5B400';cx.beginPath();cx.arc(0,-192,28,0,7);cx.fill();cx.fillStyle='#1E2226';cx.beginPath();cx.arc(0,-192,9,0,7);cx.fill();R(-74,-180,50,9,'#F1E7BE');}
+  else if(k==='drill'){R(-10,-205,20,50,'#1E2226');R(-70,-236,84,32,'#2F6DB5');R(-86,-228,16,16,'#333');R(-112,-222,26,4,'#9AA3AA');}
+  else if(k==='brush'){R(-5,-280,10,120,'#B98A55');R(-9,-294,18,16,'#9AA3AA');R(-36,-318,72,26,'#D8B77A');}
+}
+function arm(x,y,rot,right,hold){
+  const s=H/450,fw=22+Math.min(S.str,12)*1.6,g=S.owned.gloves;
+  cx.save();cx.translate(x,y);cx.rotate(rot);cx.scale(s,s);
+  const longTool=right&&['shovel','trowel','hammer','brush'].includes(hold);
+  if(longTool)tool(hold);
+  cx.fillStyle=C.sleeve;cx.beginPath();cx.roundRect(-fw-10,-82,(fw+10)*2,130,14);cx.fill();
+  R(-fw-10,-50,(fw+10)*2,10,C.refl);
+  cx.fillStyle=C.skin;cx.beginPath();cx.roundRect(-fw,-132,fw*2,64,fw*.7);cx.fill();
+  cx.fillStyle=g?C.glove:C.skin;cx.beginPath();cx.roundRect(-fw-4,-172,(fw+4)*2,52,16);cx.fill();
+  cx.strokeStyle='rgba(0,0,0,.18)';cx.lineWidth=2;cx.beginPath();
+  for(let k=1;k<4;k++){const fx=-fw-4+k*(fw+4)*2/4;cx.moveTo(fx,-172);cx.lineTo(fx,-156);}cx.stroke();
+  const d=right?-1:1;cx.fillStyle=g?C.gloveD:C.skinD;cx.beginPath();cx.ellipse(d*(fw+3),-140,9,18,d*.5,0,7);cx.fill();
+  if(right&&!longTool)tool(hold);
+  cx.restore();
+}
+
+const fx={swing:-1e9,parts:[],floats:[],last:0};
+function burst(got){
+  const x=W*.5+(Math.random()-.5)*W*.2,y=H*.55+(Math.random()-.5)*H*.1;
+  if(!reduce)for(let i=0;i<7;i++)fx.parts.push({x,y,vx:(Math.random()-.5)*120,vy:-Math.random()*120-20,life:1});
+  fx.floats.push({x,y:y-10,txt:'+'+fmtc(got),life:1});
+}
+function draw(t){
+  const dt=Math.min(.05,(t-fx.last)/1000||0);fx.last=t;
+  const hz=H*.5;
+  let g=cx.createLinearGradient(0,0,0,hz);g.addColorStop(0,C.sky1);g.addColorStop(1,C.sky2);cx.fillStyle=g;cx.fillRect(0,0,W,hz+1);
+  cx.fillStyle='#FFF3C4';cx.beginPath();cx.arc(W*.82,H*.15,H*.055,0,7);cx.fill();
+  cx.fillStyle=C.hill;cx.beginPath();cx.moveTo(0,hz);
+  for(let x=0;x<=W+20;x+=20)cx.lineTo(x,hz-H*.05-Math.sin(x*.008)*H*.03-Math.sin(x*.021+1)*H*.015);
+  cx.lineTo(W,hz);cx.fill();
+  g=cx.createLinearGradient(0,hz,0,H);g.addColorStop(0,C.earth1);g.addColorStop(1,C.earth2);cx.fillStyle=g;cx.fillRect(0,hz,W,H-hz);
+
+  const p=P[S.cur],pr=S.prog[S.cur];
+  const f=k=>pr.i>k?1:pr.i===k?Math.min(1,pr.w/p.steps[k].work):0;
+  SCENE[S.cur](f,t);
+  if(S.hens)hens(t);
+
+  for(const q of fx.parts){q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=400*dt;q.life-=dt*1.6;}
+  fx.parts=fx.parts.filter(q=>q.life>0);
+  for(const q of fx.parts){cx.globalAlpha=q.life;R(q.x,q.y,3,3,'#8A6A45');}
+  cx.globalAlpha=1;
+  cx.font=`700 ${Math.max(14,H*.045)}px 'Barlow Semi Condensed',sans-serif`;cx.textAlign='center';
+  for(const q of fx.floats){q.life-=dt*1.1;q.y-=dt*50;cx.globalAlpha=Math.max(0,q.life);cx.fillStyle='#1E2226';cx.fillText(q.txt,q.x+1,q.y+1);cx.fillStyle='#F5B400';cx.fillText(q.txt,q.x,q.y);}
+  fx.floats=fx.floats.filter(q=>q.life>0);cx.globalAlpha=1;
+
+  const st=step(),hold=st?st.hold:null,s=H/450;
+  const ps=(t-fx.swing)/220,sw=ps>=0&&ps<1?Math.sin(Math.PI*ps):0,bob=reduce?0:Math.sin(t/600)*3*s;
+  arm(W*.12,H+40*s+bob,.32,false,null);
+  arm(W*.88-sw*W*.06,H+40*s+bob-sw*H*.08,-.32-sw*.45,true,hold);
+
+  if(S.busy){
+    const k=Math.min(1,(Date.now()-S.busy.t0)/S.busy.dur);
+    cx.fillStyle='rgba(20,24,28,.6)';cx.fillRect(0,0,W,H);
+    cx.fillStyle='#F4F2ED';cx.font=`600 ${Math.max(15,H*.05)}px 'Barlow Semi Condensed',sans-serif`;cx.fillText(S.busy.label+'…',W/2,H*.45);
+    R(W*.3,H*.5,W*.4,8,'rgba(255,255,255,.25)');R(W*.3,H*.5,W*.4*k,8,'#F5B400');
+  }
+}
+function frame(t){if(W&&H)draw(t);requestAnimationFrame(frame);}
+
+let lastTick=performance.now();
+function tick(){
+  const now=performance.now(),dt=Math.min(1,(now-lastTick)/1000);lastTick=now;
+  S.energy=Math.min(100,S.energy+dt*(.6+(S.hens?1:0)));
+  if(S.hens)S.money+=dt*.5;
+  if(S.busy&&Date.now()>=S.busy.t0+S.busy.dur)finishBusy();
+  const st=step();
+  if(S.crew&&st&&!missing(st).length)addWork(S.cur,crewRate(st)*dt);
+  updateUI();
+}
+
+function start(d){
+  S=(d&&d.S)||Object.assign(newState(),load()||{});
+  ORDER.forEach(id=>{if(!S.prog[id])S.prog[id]={i:0,w:0};});
+  if(!P[S.cur])S.cur='house';
+  fit();updateUI();
+  setInterval(tick,100);setInterval(save,3000);
+  addEventListener('pagehide',save);
+  requestAnimationFrame(frame);
+}
+window.claude?.hot?.snapshot?.(()=>({S}));
+window.claude?.hot?.ready?window.claude.hot.ready(start):start(window.claude?.hot?.data??{});
+</script>

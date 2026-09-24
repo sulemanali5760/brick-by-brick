@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Brick by Brick 3D</title>
+<meta name="description" content="First-person bricklaying: lay a real stretcher-bond garden wall, brick by brick.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=Saira+Stencil+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --ink:#1E2226; --glass:rgba(24,28,31,.82); --paper:#F4F2ED; --muted:#B9B6AE; --hivis:#F5B400;
+  --perfect:#7CD992; --good:#F5B400; --bad:#FF7A59;
+  --display:'Saira Stencil One','Barlow Semi Condensed',Impact,sans-serif;
+  --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --label:'Barlow Semi Condensed','Barlow',system-ui,sans-serif;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--ink);color:var(--paper);font-family:var(--body);overflow:hidden}
+#app{position:relative;height:100%;overflow:hidden}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#hud{position:absolute;inset:0;pointer-events:none}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--hivis);outline-offset:2px}
+
+.panel{background:var(--glass);border:1.5px solid rgba(244,242,237,.18);backdrop-filter:blur(6px)}
+.eyebrow{font-family:var(--label);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--hivis)}
+.clip{position:absolute;top:14px;left:16px;max-width:min(380px,calc(100% - 32px));padding:10px 14px 12px}
+#task{font-family:var(--label);font-weight:700;font-size:clamp(17px,2.2vw,21px);line-height:1.2;margin-top:4px;text-wrap:balance}
+#where{font-family:var(--label);font-size:13.5px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+.stats{position:absolute;top:14px;right:16px;padding:8px 14px 10px;text-align:right;font-variant-numeric:tabular-nums}
+#pay{font-family:var(--display);font-size:clamp(24px,3vw,32px);line-height:1;color:var(--hivis)}
+.stats div{font-family:var(--label);font-size:13.5px;color:var(--muted);margin-top:3px}
+@media (max-width:620px){
+  .clip{top:10px;left:10px;right:10px;max-width:none;padding:8px 12px 10px}
+  .stats{top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px));right:10px}
+}
+
+#cross{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
+  --charge:0;background:conic-gradient(var(--hivis) calc(var(--charge)*360deg),transparent 0);
+  -webkit-mask:radial-gradient(circle,transparent 9px,#000 10px);mask:radial-gradient(circle,transparent 9px,#000 10px);
+  box-shadow:inset 0 0 0 2px rgba(244,242,237,.55)}
+#cross::after{content:'';position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:var(--paper)}
+#cross.on{box-shadow:inset 0 0 0 2px var(--hivis)}
+#label{position:absolute;left:50%;top:calc(50% + 22px);transform:translateX(-50%);font-family:var(--label);font-weight:700;font-size:15px;
+  white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+
+#gauge{position:absolute;left:calc(50% + 64px);top:50%;transform:translateY(-50%);width:74px;height:190px;padding:10px 8px}
+.bar{position:relative;height:150px;width:12px;margin-left:8px;background:linear-gradient(to bottom,
+  rgba(244,242,237,.25) 0 58.3%, var(--perfect) 58.3% 75%, var(--good) 75% 83.3%, var(--bad) 83.3% 100%)}
+.bar::before{content:'line';position:absolute;left:16px;top:66.7%;transform:translateY(-50%);font-family:var(--label);font-size:11px;color:var(--muted)}
+.bar::after{content:'';position:absolute;left:-4px;right:-4px;top:66.7%;height:1.5px;background:#ff3d8b}
+#gaugeMark{position:absolute;left:-7px;width:26px;height:4px;margin-top:-2px;background:var(--paper);box-shadow:0 0 0 1.5px var(--ink);transition:top .12s ease-out}
+#gaugeVal{font-family:var(--label);font-weight:700;font-size:13px;margin-top:6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+#toast{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  width:min(560px,calc(100% - 32px));padding:10px 14px;font-size:15px;line-height:1.4}
+#toast b{display:block;font-family:var(--label);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--hivis);margin-bottom:2px}
+@media (max-width:620px){#toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
+.fly{position:absolute;left:50%;top:calc(50% - 34px);transform:translateX(-50%);font-family:var(--label);font-weight:700;font-size:18px;
+  white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.8);animation:fly 1.1s ease-out forwards}
+.fly.perfect{color:var(--perfect)} .fly.good{color:var(--good)} .fly.rough,.fly.bad{color:var(--bad)}
+@keyframes fly{to{transform:translate(-50%,-34px);opacity:0}}
+
+.corner{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:16px;display:flex;gap:8px;align-items:center;pointer-events:auto}
+#mute{background:var(--glass);color:var(--paper);border:1.5px solid rgba(244,242,237,.25);padding:5px 10px;font-family:var(--label);font-weight:600;font-size:13px}
+#lockHint{font-family:var(--label);font-size:13px;color:var(--muted)}
+@media (max-width:620px){.corner{left:10px}}
+
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding:16px;background:rgba(18,21,24,.55);overflow:auto}
+.card{width:min(540px,100%);padding:24px 24px 22px;background:var(--glass)}
+.card h1{font-family:var(--display);font-weight:400;font-size:clamp(34px,6vw,48px);line-height:1;margin:6px 0 10px}
+.card p{margin:0 0 14px;color:#DEDBD3;line-height:1.5;max-width:60ch}
+.controls{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0 0 18px;font-size:14px}
+.controls dt{font-family:var(--label);font-weight:700;color:var(--hivis)}
+.controls dd{margin:0;color:#DEDBD3}
+.go{font-family:var(--display);font-size:24px;background:var(--hivis);color:var(--ink);border:0;padding:12px 28px 13px;box-shadow:0 4px 0 #8a6600}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 #8a6600}
+.go:disabled{background:#5d5a52;color:var(--muted);box-shadow:none;cursor:wait}
+.credit{font-size:12px;color:var(--muted);margin-top:14px}
+#endStats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:4px 0 18px}
+#endStats dt{font-family:var(--label);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+#endStats dd{margin:2px 0 0;font-family:var(--label);font-weight:700;font-size:22px;font-variant-numeric:tabular-nums}
+#learned{margin:6px 0 20px;padding-left:20px;color:#DEDBD3;line-height:1.5}
+.mortar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin-top:8px;font-family:var(--label);font-size:12.5px;color:var(--muted)}
+.mortar i{height:6px;background:rgba(244,242,237,.18)}
+.mortar b{display:block;height:100%;background:var(--perfect);transition:width .2s linear}
+.mortar.low b{background:var(--bad)} .mortar.low em{color:var(--bad)}
+.mortar em{font-style:normal;font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+#streak.hot{color:var(--hivis);font-weight:700}
+.jobs{list-style:none;margin:6px 0 14px;padding:0;display:grid;gap:4px}
+.job{width:100%;display:flex;justify-content:space-between;gap:12px;align-items:baseline;text-align:left;padding:8px 12px;
+  background:rgba(244,242,237,.06);border:1.5px solid rgba(244,242,237,.18);color:var(--paper);font-family:var(--label);font-weight:700;font-size:16px}
+.job em{font-style:normal;font-weight:500;font-size:13px;color:var(--muted)}
+.job[aria-pressed="true"]{border-color:var(--hivis);background:rgba(245,180,0,.12)}
+.job:disabled,.job.soon{opacity:.5;cursor:default}
+.wallet{font-family:var(--label);font-size:14px;color:var(--muted);margin:0 0 16px}
+.shop{display:grid;gap:6px;margin:8px 0 18px}
+.item{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(244,242,237,.12)}
+.item b{display:block;font-family:var(--label);font-size:16px}
+.item span{font-size:13.5px;color:var(--muted);line-height:1.35}
+.buy{font-family:var(--label);font-weight:700;font-size:14px;min-width:80px;padding:7px 10px;background:transparent;color:var(--paper);border:1.5px solid var(--hivis)}
+.buy:hover:not(:disabled){background:var(--hivis);color:var(--ink)}
+.buy:disabled{border-color:rgba(244,242,237,.25);color:var(--muted);cursor:default}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.plain{background:transparent;border:1.5px solid rgba(244,242,237,.3);color:var(--paper);font-family:var(--label);font-weight:600;font-size:15px;padding:10px 16px}
+.linkish{background:none;border:0;padding:0;margin-top:12px;color:var(--muted);font-size:12px;text-decoration:underline}
+.card.wide{width:min(620px,100%)}
+@media (prefers-reduced-motion:reduce){.fly{animation-duration:.01s}#gaugeMark{transition:none}}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <canvas id="view" aria-label="First-person view of the building site"></canvas>
+  <div id="hud">
+    <div class="panel clip"><div class="eyebrow">Foreman's clipboard</div><div id="task">Loading…</div><div id="where"></div>
+      <div id="mortar" class="mortar" hidden><span>Mortar</span><i><b id="mortarFill"></b></i><em id="mortarSec"></em></div></div>
+    <div class="panel stats"><div id="pay">€0.00</div><div id="count"></div><div id="streak"></div></div>
+    <div id="cross" hidden></div><div id="label"></div>
+    <div id="gauge" class="panel" hidden><div class="bar"><div id="gaugeMark"></div></div><div id="gaugeVal"></div></div>
+    <div id="toast" class="panel" aria-live="polite" hidden></div>
+    <div class="corner"><button id="mute">Sound on</button><span id="lockHint" hidden>Click the view to look around · Esc frees the mouse</span></div>
+  </div>
+
+  <div id="start" class="overlay">
+    <div class="card panel">
+      <div class="eyebrow">Version 0.2</div>
+      <h1>Brick by Brick</h1>
+      <p>Lay real walls brick by brick. Keep every brick on the string line, lay it before the mortar goes off, and chain perfect bricks for bonus pay.</p>
+      <div class="eyebrow">Jobs</div>
+      <ol id="jobs" class="jobs"></ol>
+      <div id="wallet" class="wallet"></div>
+      <dl class="controls">
+        <dt>Look</dt><dd>Mouse (PC) · drag (phone)</dd>
+        <dt>Move</dt><dd>W A S D, optional. Everything is in reach</dd>
+        <dt>Work</dt><dd>Click, or tap the object on a phone</dd>
+        <dt>Set a brick</dt><dd>Click for a light tap, hold for a firm knock</dd>
+      </dl>
+      <button id="startBtn" class="go" disabled>Loading…</button>
+      <div id="loading" class="credit"></div>
+      <div class="credit">Models built in Blender · textures, sky, cement bag and tape measure from Poly Haven (CC0)</div>
+      <button id="resetBtn" class="linkish">Reset progress</button>
+    </div>
+  </div>
+
+  <div id="end" class="overlay" hidden>
+    <div class="card panel wide">
+      <div class="eyebrow">Job done</div>
+      <h1 id="endTitle">Finished</h1>
+      <dl id="endStats"></dl>
+      <div class="eyebrow">What you learned</div>
+      <ul id="learned"></ul>
+      <div class="eyebrow">Tool shop · wallet <span id="endWallet"></span></div>
+      <div id="shop" class="shop"></div>
+      <p id="moreSoon" class="credit" hidden></p>
+      <div class="row">
+        <button id="nextBtn" class="go">Next job</button>
+        <button id="againBtn" class="plain">Lay it again</button>
+        <button id="menuBtn" class="plain">All jobs</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+<script>
+  // show start-up failures on the start card instead of a silent "Loading…"
+  addEventListener('error', e => { const l = document.getElementById('loading'); if (l) l.textContent = 'Could not start: ' + (e.message || 'a file failed to load'); }, true);
+</script>
+<script type="module" src="js/game.js"></script>
+</body>
+</html>
