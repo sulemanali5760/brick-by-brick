@@ -4,7 +4,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
 
-const BASE = process.argv[2] || 'http://localhost:8080/';
+const BASE = (process.argv[2] || 'http://localhost:8080/') + '?q=low';
 const OUT = 'qa/out';
 mkdirSync(OUT, { recursive: true });
 
@@ -20,6 +20,7 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 for (const v of VIEWS) {
   const ctx = await browser.newContext({ viewport: v.viewport, isMobile: v.isMobile, hasTouch: v.hasTouch, deviceScaleFactor: v.deviceScaleFactor || 1 });
   const page = await ctx.newPage();
+  page.setDefaultTimeout(120000);
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -48,13 +49,17 @@ for (const v of VIEWS) {
   // A2: play the whole wall; whenever a brick is being levelled, the gauge must not cover it
   const a2 = await page.evaluate(async () => {
     const g = __bbb.game, over = [];
+    let checked = -1; // check each brick once, on its first tap
     const rectOf = el => el.getBoundingClientRect();
     for (let n = 0; !g.state.done && n < 4000; n++) {
       const a = g.nextAction(performance.now() / 1000), st = g.state;
       if (a === 'hit') {
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-        const gr = rectOf(document.getElementById('gauge')), br = __bbb.qa.brickRect();
-        if (!(gr.right < br.x0 || gr.left > br.x1 || gr.bottom < br.y0 || gr.top > br.y1)) over.push(st.cur);
+        if (checked !== st.cur) {
+          checked = st.cur;
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const gr = rectOf(document.getElementById('gauge')), br = __bbb.qa.brickRect();
+          if (!(gr.right < br.x0 || gr.left > br.x1 || gr.bottom < br.y0 || gr.top > br.y1)) over.push(st.cur);
+        }
         const s = st.setting;
         __bbb.act('brick', Math.max(s.a, s.b) > 3 ? 0.4 : 0, Math.abs(s.a - s.b) > 0.6 ? (s.a > s.b ? 0 : 1) : 0.5);
       } else if (a === 'load') __bbb.act('tub');

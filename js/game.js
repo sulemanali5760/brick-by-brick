@@ -21,9 +21,11 @@ let save = loadSave();
 
 /* ---------- renderer, camera ---------- */
 const canvas = $('view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
-renderer.shadowMap.enabled = true;
+// ?q=low: for weak GPUs (and the software-GL QA runner): no shadows, no antialiasing, 1x pixels
+const LOW = new URLSearchParams(location.search).get('q') === 'low';
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !LOW });
+renderer.setPixelRatio(LOW ? 1 : Math.min(devicePixelRatio, 1.75));
+renderer.shadowMap.enabled = !LOW;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 const scene = new THREE.Scene();
