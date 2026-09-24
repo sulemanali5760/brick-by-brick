@@ -4,7 +4,9 @@ Owned by the design team; reviewed after every build. Builds live in `docs/build
 
 ## Vision
 
-**You start on site with a trowel and end up running your own crew and robots on a stadium.** Every step teaches something true about building, and every step makes you visibly faster.
+**You build homes for people and animals who have none, and your grandmother's empty plot grows into a village.** You start with a trowel and a stray dog's kennel. You end up running a crew and robots, rebuilding the town's old grandstand. Every home teaches something true about building, every resident has a name and a story, and every step makes you visibly faster.
+
+*Owner's idea, 2026-09-24:* help homeless people and animals with every kind of home (tent, van, timber, brick, kennel, cat shelter, chicken coop). Residents move in at the end of a job and thank you with XP, gifts and word of mouth that brings the next resident. **Tone rule:** residents are people and animals with dignity, never reward dispensers. XP and pay come from the work; thanks come from them.
 
 ## Pillars (every feature must serve at least one)
 
@@ -12,7 +14,8 @@ Owned by the design team; reviewed after every build. Builds live in `docs/build
 2. **Visible progress:** you always see the wall, the house, the site grow. Nothing important happens off-screen.
 3. **Faster and faster:** skill, tools, crew and robots each speed you up in a way you can feel. (Owner's original idea.)
 4. **Short sessions:** one job in 5–10 minutes, with a clear payoff shot at the end.
-5. **Your place grows:** the jobs build up your own plot over time. (Agreed: starts once there are 3–4 jobs.)
+5. **Your place grows:** every finished home stands in your village with its resident living in it.
+6. **Someone to build for:** every job has a resident with a name, a need and a move-in moment (added 2026-09-24).
 
 ## What we learned so far (from builds 0.1–0.6)
 
@@ -26,12 +29,12 @@ Owned by the design team; reviewed after every build. Builds live in `docs/build
 |---|---|---|---|
 | **0.7** ✓ | Phone and flow | Tool belt on touch screens; camera keeps the current brick in view; fast-forward while the robot works; one game clock (pause and speed become trivial) | 2, 4 |
 | **0.8** ✓ | Openings | Wall with a **door and window opening**: leave the gap, set a **precast lintel** (≥ 115 mm bearing each side, manufacturer tables, see REFERENCES), close the reveals. New Blender assets: lintel, door and window frames | 1, 2 |
-| **0.9** | Feel and reasons | Fixes research risks 1 and 2 ([RESEARCH.md](RESEARCH.md)). **Your lead courses set the robot's accuracy** (Perfect leads → a precise robot, Rough leads → it drifts). **Juice the tap:** mortar squeeze-out, a short freeze on Perfect, a string-line twang, dust on hard knocks. A **jointing pass** finishes each wall. The **foreman Gü** gets a voice (clipboard lines, facts). A CI balance check that neither "always hand over" nor "never hand over" wins on both money and time. | 1, 3, 4 |
-| **0.10** | Your plot | A persistent plot: finished jobs assemble into **your house** (plinth → walls with openings → gable). **The house is where the money goes** (each part costs material money, Stardew-style board). **You choose its look** (brick, bond, joint colour). The grandmother's note ("Build something that stays"). | 2, 5 |
-| **0.11** | Body and skills | Courses **unlock new actions, not +10%**: racking back, bolster cuts, Flemish bond, arches. Protein becomes a **short speed boost**, not a stamina drain. The engineering degree unlocks robot fleets. | 1, 3 |
-| **0.12** | Crew and contracts | A crew board (labourer, apprentice, robots) plus **contracts with a fixed quote and an early-finish bonus**, so handing over becomes a real choice. Things to do while the robot works: plumb-check its courses, set out the next wall. | 3 |
-| **0.13** | Beyond brick | Chicken coop (timber frame, welded mesh) and courtyard (sub-base, 1:60 fall, herringbone pavers) | 1, 5 |
-| **1.0** | Big contract | **The stadium is SV Ziegelau's 1920s grandstand**, a fenced ruin on every job's skyline from job 1. Gü's father built it. Survey, piling, precast terraces, a robot fleet run from a laptop, and **the last brick laid by hand**. | all |
+| **0.9** | First resident | **Bruno, a stray dog, gets a brick kennel.** It's a closed box with four corners, a door opening with a lintel (0.8), a raised timber floor and a roof. Bruno moves in at the end. Adds residents (name, story, request, thanks), XP with a level, and the village list in the save. | 1, 2, 6 |
+| **0.10** | Feel and reasons | Research risks 1 and 2 ([RESEARCH.md](RESEARCH.md)). **Your lead courses set the robot's accuracy.** **Juice the tap** (mortar squeeze-out, a short freeze on Perfect, a string-line twang, dust on hard knocks). A **jointing pass** finishes each wall. The foreman Gü gets a voice. A CI check that neither "always hand over" nor "never hand over" wins on both money and time. | 1, 3, 4 |
+| **0.11** | Your village | Your grandmother's plot: every finished home stands there with its resident. **Material money goes into the village** (paths, fences, a well; you choose how it looks). New residents: a **cat colony** (insulated shelter, straw not blankets) and **rescued hens** (coop: perches, nest boxes, fox-proof mesh). | 2, 5, 6 |
+| **0.12** | First people | A **tent** for someone sleeping rough (pitching, guy lines, ditching for rain; a new mechanic) and a **timber tiny house** (stud frame, sheathing, roof). Courses unlock new techniques, not +10%. Protein becomes a short speed boost. | 1, 3, 6 |
+| **0.13** | Crew and contracts | A **van conversion** (insulation, ventilation, bed). A crew board plus contracts with a fixed quote and an early-finish bonus. Jobs to do while the robot works. | 3, 6 |
+| **1.0** | Big contract | **The town's 1920s grandstand**, a fenced ruin on every job's skyline from job 1. Gü's father built it. The whole village comes to the opening. Survey, piling, precast terraces, a robot fleet run from a laptop, and **the last brick laid by hand**. | all |
 
 **Standing rule from the research:** every new job adds **one real-technique twist** (cracked brick, rain, DF/2DF bricks, cuts) with optional stars and no fail state. Keep jobs to 5–10 min.
 
