@@ -25,6 +25,8 @@ Read before every build. Add an entry whenever something goes wrong. Each entry 
 | L19 | The 3D view went flat grey after the test viewport was resized | one layout pass reported a 0-px height, so the aspect became 0/0 = NaN and the projection stayed NaN | `resize()` ignores 0-size passes (0.4.2). Guard any divide by a layout size. |
 | L20 | A screenshot straight after a JS action showed the old HUD | the pane's capture lags a frame or two | Wait ≥ 1 s after an action before a screenshot; trust JS state over pixels. |
 | L21 | Downloaded Poly Haven files were opened in local Blender (the texture for the tub and pallet, the conversion of the cement bag and tape measure) | not a bug, but it goes against his security rule: web downloads must not be opened on his laptop | Local Blender builds only our own models with procedural textures. Downloads are fetched, converted (`blender/convert_polyhaven.py`) and validated (`tools/validate_assets.mjs`) in GitHub Actions and viewed on Pages. |
+| L22 | Projection maths returned NaN in tests on the phone viewport | the browser pane was **hidden**, so `requestAnimationFrame` never ran and the camera matrices were never updated | Check `document.visibilityState` first; in test scripts call `camera.updateMatrixWorld()` before projecting. |
+| L23 | An end-tap registered at the wrong end on angled views | the tap position came from the padded hitbox surface, where the ray enters the box nearest the camera | Measure player intent in **screen space** (along the projected brick axis), not on padded hitboxes. |
 
 ## Design
 

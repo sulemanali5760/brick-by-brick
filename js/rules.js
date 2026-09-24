@@ -178,7 +178,13 @@ export function createGame(content, job, upgrades = {}, rand = Math.random) {
     };
   }
 
-  return { state: s, slots, open, nextAction, mortarLeft, load, spread, scrape, grab, place, hit, tick, summary };
+  // the game was paused (tab hidden) for dt seconds: mortar and job clock don't age meanwhile
+  function shift(dt) {
+    s.bedAt += dt;
+    if (s.t0 !== null && !s.done) s.t0 += dt;
+  }
+
+  return { state: s, slots, open, nextAction, mortarLeft, load, spread, scrape, grab, place, hit, tick, shift, summary };
 }
 
 /* ---------- campaign save: money, upgrades, unlocked jobs ---------- */

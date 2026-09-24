@@ -185,7 +185,7 @@ def image_from(name, arr):
 def mortar_image():
     """Sandy grey mortar: fine grain plus a few darker and lighter sand specks."""
     n = 256
-    base = np.array([0.66, 0.64, 0.60])[None, None] * (1 + 0.08 * rng.normal(0, 1, (n, n, 1)))
+    base = np.array([0.47, 0.455, 0.43])[None, None] * (1 + 0.08 * rng.normal(0, 1, (n, n, 1)))  # reads mid-grey in sun
     specks = rng.random((n, n))
     base[specks > 0.97] *= 0.75
     base[specks < 0.03] *= 1.12

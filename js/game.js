@@ -524,7 +524,7 @@ function finish() {
   $('endTitle').textContent = `${job.name} finished`;
   $('endStats').innerHTML = [
     ['Bricks laid', `${s.bricks}`], ['Perfect', `${Math.round(s.perfect / s.bricks * 100)}%`], ['Best streak', `${s.bestStreak}`],
-    ['Re-laid', `${s.rough}`], ['Time', `${mins}:${String(secs).padStart(2, '0')}`], ['Earned', euro(s.pay)],
+    ['Rough', `${s.rough}`], ['Time', `${mins}:${String(secs).padStart(2, '0')}`], ['Earned', euro(s.pay)],
   ].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   $('learned').innerHTML = content.learned[job.id].map(x => `<li>${x}</li>`).join('');
   const next = content.jobs[jobIndex + 1];
@@ -585,12 +585,41 @@ function targetAt(ndc) {
   const hit = ray.intersectObjects(hits.filter(h => h.visible), false).find(h => h.distance < REACH);
   return hit ? { act: hit.object.userData.act, point: hit.point } : null;
 }
-// where along the current brick a point lies: 0 = start end, 1 = far end
-function alongBrick(point) {
+// where along the current brick a screen point (NDC) lies: 0 = start end, 1 = far end.
+// Measured on screen along the brick's projected top edge, so it matches what the player aimed at
+// from any angle (a padded hitbox surface would bias it towards the end nearest the camera, L23).
+function alongBrick(ndc) {
   const sl = game.slots[game.state.cur];
-  if (!sl || !point) return 0.5;
-  const t = sl.rot ? (point.z - (sl.z - sl.len / 2)) / sl.len : (point.x - (sl.x - sl.len / 2)) / sl.len;
-  return Math.max(0, Math.min(1, t));
+  if (!sl) return 0.5;
+  const h = sl.len / 2, y = slotY(sl) + BH;
+  const p0 = new THREE.Vector3(sl.x - (sl.rot ? 0 : h), y, sl.z - (sl.rot ? h : 0)).project(camera);
+  const p1 = new THREE.Vector3(sl.x + (sl.rot ? 0 : h), y, sl.z + (sl.rot ? h : 0)).project(camera);
+  const a = camera.aspect, dx = (p1.x - p0.x) * a, dy = p1.y - p0.y, qx = (ndc.x - p0.x) * a, qy = ndc.y - p0.y;
+  return Math.max(0, Math.min(1, (qx * dx + qy * dy) / (dx * dx + dy * dy || 1)));
+}
+// the brick being levelled as a screen rectangle (px)
+function brickRect(sl) {
+  const W = canvas.clientWidth, H = canvas.clientHeight, xs = [], ys = [];
+  for (const u of [-1, 1]) for (const v of [0, 1]) for (const w of [-1, 1]) {
+    const p = new THREE.Vector3(sl.x + (sl.rot ? w * BD / 2 : u * sl.len / 2), slotY(sl) + v * BH, sl.z + (sl.rot ? u * sl.len / 2 : w * BD / 2)).project(camera);
+    xs.push((p.x + 1) / 2 * W); ys.push((1 - p.y) / 2 * H);
+  }
+  return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+}
+// keep the level gauge beside the brick, never on it: right if there's room, else left, else below
+function placeGauge() {
+  const sl = game.slots[game.state.cur], g = $('gauge');
+  if (!sl || g.hidden) return;
+  const r = brickRect(sl), W = canvas.clientWidth, H = canvas.clientHeight, gw = g.offsetWidth, gh = g.offsetHeight, m = 18;
+  let x = r.x1 + m, y = (r.y0 + r.y1) / 2 - gh / 2;
+  if (x + gw > W - 8) x = r.x0 - m - gw;
+  if (x < 8) {
+    x = Math.min(W - gw - 8, Math.max(8, (r.x0 + r.x1) / 2 - gw / 2));
+    y = r.y1 + m;
+    if (y + gh > H - 8) y = r.y0 - m - gh;
+  }
+  g.style.left = `${Math.round(x)}px`;
+  g.style.top = `${Math.round(Math.max(8, Math.min(H - gh - 8, y)))}px`;
 }
 // is the start end of the current slot on the left of the screen?
 function startIsLeft() {
@@ -625,8 +654,8 @@ canvas.addEventListener('pointerdown', e => {
     return;
   }
   if (!locked) try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
-  down = { t: performance.now(), x: e.clientX, y: e.clientY, target: locked ? targetAt(center) : targetAt(ndcOf(e)), dragged: false };
-  if (down.target) { down.u = alongBrick(down.target.point); down.target = down.target.act; }
+  const ndc = locked ? center : ndcOf(e), hit = targetAt(ndc);
+  down = { t: performance.now(), x: e.clientX, y: e.clientY, target: hit && hit.act, u: alongBrick(ndc), dragged: false };
 });
 canvas.addEventListener('pointermove', e => {
   if (!playing) return;
@@ -658,6 +687,12 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM') { muted = !muted; $('mute').textContent = muted ? 'Sound off' : 'Sound on'; }
 });
 addEventListener('keyup', e => keys.delete(e.code));
+// a hidden tab stops the frame loop; don't let the mortar set while the player is away
+let hiddenAt = null;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) hiddenAt = nowS();
+  else if (hiddenAt !== null) { game.shift(nowS() - hiddenAt); beds.forEach(b => { b.at += nowS() - hiddenAt; }); hiddenAt = null; }
+});
 addEventListener('blur', () => keys.clear());
 $('mute').onclick = () => { muted = !muted; $('mute').textContent = muted ? 'Sound off' : 'Sound on'; };
 
@@ -705,7 +740,7 @@ function frame() {
   if (playing) {
     const hit = locked ? targetAt(center) : null, tgt = hit && hit.act;
     let [label, ok] = tgt ? labelFor(tgt) : ['', false];
-    if (tgt === 'brick') label = `Tap the ${endName(alongBrick(hit.point))} · hold to knock`;
+    if (tgt === 'brick') label = `Tap the ${endName(alongBrick(center))} · hold to knock`;
     if (down && down.target === 'brick' && !down.dragged) {
       const held = (now - down.t) / 1000, mm = content.mm;
       label = held < content.holdForKnock ? 'Light tap' : `Knock ~${Math.min(mm.knock[1], mm.knock[0] + (held - content.holdForKnock) * mm.knockPerSec).toFixed(1)} mm`;
@@ -718,6 +753,7 @@ function frame() {
     $('cross').style.setProperty('--charge', charging ? Math.min(1, (now - down.t) / 1000 / full) : 0);
   }
   renderer.render(scene, camera);
+  if (game.state.setting) placeGauge(); // after render: camera matrices are current
   requestAnimationFrame(frame);
 }
 

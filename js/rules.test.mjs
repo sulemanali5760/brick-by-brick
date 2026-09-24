@@ -111,6 +111,14 @@ if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMM
   assert.equal(g.nextAction(g.open + 1), 'scrape', 'the second bed went off too');
 }
 
+// pausing (tab hidden) doesn't age the mortar
+{
+  const g = createGame(content, content.jobs[1], {}, () => 0.5);
+  g.load(0); g.spread(0);
+  g.shift(100);
+  assert.equal(g.nextAction(g.open + 50), 'grab-full', 'still workable after a 100 s pause');
+}
+
 // striking one end sinks that end more than the other
 {
   const g = createGame(content, content.jobs[0], {}, () => 0.5);

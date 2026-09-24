@@ -9,6 +9,7 @@
 - Stronger brick-to-brick tone variation, as in real walls.
 - **Pipeline:** downloaded assets are fetched, converted and validated only on GitHub (new `polyhaven` and `assets` workflows). Local Blender builds our models with procedural textures.
 - **QA:** every build now posts a balance report (fast bot vs human-pace player) to the Actions summary.
+- **0.5.1 (QA fixes, see the plan's §5–6):** the level gauge follows the brick you're levelling and never covers it; taps on a brick end are measured on screen, so they're right from any angle; the result card is a bottom sheet below 1000 px wide; the game pauses its clocks while the tab is hidden; "Re-laid" is now "Rough"; the tub mortar is less white.
 
 ## 0.4 — Mortar sets under the brick too
 - **Balance fix:** the 0.3 bot still scored 100% Perfect, because patient light taps cost nothing. The mortar now keeps setting while you level a brick. If it goes off first, the brick **sets proud** where it is and pays Rough. That makes a real choice between fast knocks and careful taps.

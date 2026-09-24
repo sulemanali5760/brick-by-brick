@@ -29,7 +29,7 @@ button{font:inherit;cursor:pointer}
 
 .panel{background:var(--glass);border:1.5px solid rgba(244,242,237,.18);backdrop-filter:blur(6px)}
 .eyebrow{font-family:var(--label);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--hivis)}
-.stackL{position:absolute;top:14px;left:16px;width:min(380px,calc(100% - 180px));display:grid;gap:8px;align-content:start}
+.stackL{position:absolute;top:14px;left:16px;width:min(380px,calc(50% - 40px));display:grid;gap:8px;align-content:start}
 .clip{padding:10px 14px 12px}
 #task{font-family:var(--label);font-weight:700;font-size:clamp(17px,2.2vw,21px);line-height:1.2;margin-top:4px;text-wrap:balance}
 #where{font-family:var(--label);font-size:13.5px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
@@ -51,8 +51,7 @@ button{font:inherit;cursor:pointer}
 #label{position:absolute;left:50%;top:calc(50% + 22px);transform:translateX(-50%);font-family:var(--label);font-weight:700;font-size:15px;
   white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.8)}
 
-#gauge{position:absolute;left:calc(50% + 70px);top:50%;transform:translateY(-50%);width:200px;padding:8px 10px}
-@media (max-width:620px){#gauge{left:50%;top:auto;bottom:calc(110px + env(safe-area-inset-bottom,0px));transform:translateX(-50%)}}
+#gauge{position:absolute;left:0;top:0;width:200px;padding:8px 10px} /* placed beside the brick by placeGauge() */
 /* side view of the brick: 1 mm = 5 px, string line at 37 px; green = within 1 mm, red = more than 2 mm low */
 .side{position:relative;height:74px;overflow:hidden;
   background:linear-gradient(to bottom,transparent 0 32px,rgba(124,217,146,.3) 32px 42px,transparent 42px 47px,rgba(255,122,89,.22) 47px)}
@@ -74,11 +73,11 @@ button{font:inherit;cursor:pointer}
 @media (max-width:620px){.corner{left:10px}}
 
 .overlay{position:absolute;inset:0;display:grid;place-items:center;padding:16px;background:rgba(18,21,24,.55);overflow:auto}
-/* the end card sits beside the finished wall instead of covering it */
-.overlay.beside{place-items:center end;background:linear-gradient(to left,rgba(18,21,24,.55),transparent 55%)}
-.overlay.beside .card{max-height:calc(100% - 8px);overflow:auto}
-@media (max-width:620px){.overlay.beside{place-items:end center;background:linear-gradient(to top,rgba(18,21,24,.6),transparent 60%)}
-  .overlay.beside .card{max-height:64%}}
+/* the end card leaves the finished wall visible: a bottom sheet, or a side panel on wide screens */
+.overlay.beside{place-items:end center;background:linear-gradient(to top,rgba(18,21,24,.6),transparent 60%)}
+.overlay.beside .card{max-height:60%;overflow:auto}
+@media (min-width:1000px){.overlay.beside{place-items:center end;background:linear-gradient(to left,rgba(18,21,24,.55),transparent 55%)}
+  .overlay.beside .card{width:440px;max-height:calc(100% - 8px)}}
 .card{width:min(540px,100%);padding:24px 24px 22px;background:var(--glass)}
 .card h1{font-family:var(--display);font-weight:400;font-size:clamp(34px,6vw,48px);line-height:1;margin:6px 0 10px}
 .card p{margin:0 0 14px;color:#DEDBD3;line-height:1.5;max-width:60ch}
@@ -186,6 +185,6 @@ button{font:inherit;cursor:pointer}
   // show start-up failures on the start card instead of a silent "Loading…"
   addEventListener('error', e => { const l = document.getElementById('loading'); if (l) l.textContent = 'Could not start: ' + (e.message || 'a file failed to load'); }, true);
 </script>
-<script type="module" src="js/game.js?v=0.5.0"></script>
+<script type="module" src="js/game.js?v=0.5.1"></script>
 </body>
 </html>
