@@ -40,7 +40,7 @@ function installBot() {
     for (let n = 0; !__bbb.game.state.done && n < 20000; n++) {
       const g = __bbb.game, st = g.state;
       if (handOver && g.canHandOver()) { __bbb.handOver(); if (onHandOver) await window[onHandOver](); await frame(); continue; }
-      const a = g.nextAction(performance.now() / 1000);
+      const a = g.nextAction(__bbb.clock.t); // the game's clock, not real time (LESSONS L24)
       if (a === 'hit') {
         if (checkGauge && checked !== st.cur) {
           checked = st.cur;
@@ -136,7 +136,7 @@ for (const v of VIEWS) {
         }
       };
       const r = await window.qaPlay({ handOver: true, onHandOver: 'qaAfterHand' });
-      const sum = __bbb.game.summary(performance.now() / 1000);
+      const sum = __bbb.game.summary(__bbb.clock.t);
       return { ...r, log, robot: sum.robot, mine: sum.mine, ff: window.qaFF };
     });
     const moved = a8.log.length >= 2 && a8.log[0].wall === 1 && Math.abs(a8.log[0].yaw - 1.57) < 0.1;
