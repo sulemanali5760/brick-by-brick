@@ -7,8 +7,10 @@
   },
   "mm": {
     "placeOffset": [3.0, 8.0],
+    "tilt": [0.8, 2.6],
     "tap": [0.6, 1.0],
-    "knock": [2.4, 3.8],
+    "knock": [2.0, 5.0],
+    "knockPerSec": 6.0,
     "lockAt": 1.0,
     "perfect": 1.0,
     "good": 2.0,
@@ -57,12 +59,12 @@
     "grab-half": "This spot needs a half brick. Take one from the small stack",
     "swap": "Wrong size. Swap it at the stack",
     "place": "Lay the brick on the mortar bed",
-    "hit": "Tap it down to the line. Click = light tap, hold = firm knock",
+    "hit": "Level it to the line: aim at the high end. Click = light tap, hold = firm knock",
     "done": "Job finished. Stand back and admire it"
   },
   "facts": {
     "firstLoad": "Mortar is roughly 1 part cement to 4 parts sand, mixed stiff and buttery. It starts to stiffen as soon as it's spread, so only spread what you can lay.",
-    "firstPlace": "That's an NF brick: 240 × 115 × 71 mm, about 3 kg. Now tap it down until its top meets the string line.",
+    "firstPlace": "That's an NF brick: 240 × 115 × 71 mm, about 3 kg. It landed tilted, so tap the high end first. Both ends have to finish on the string line.",
     "firstSet": "On the line. The mortar under it, the bed joint, ends up about 12 mm thick.",
     "firstSunk": "Too low: you squeezed out too much mortar. Lift it and lay it again. Light taps near the line, firm knocks only when it sits high.",
     "mortarOff": "The mortar has gone off: it's too stiff to bed a brick properly. Scrape it back and spread fresh. Never lay onto stiff mortar, because the brick won't bond.",

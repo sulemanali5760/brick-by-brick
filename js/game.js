@@ -186,10 +186,13 @@ function bedFor(i, extraMM, freshAt) {
   b.mesh.scale.set(...dims(sl, sl.len + 0.006, h, BD - 0.012));
   b.mesh.position.set(sl.x, slotY(sl) - W.bedJoint + h / 2, sl.z);
 }
-function setBrickHeight(i, offMM) {
-  const sl = game.slots[i];
-  bricks.get(i).position.set(sl.x, slotY(sl) + offMM / 1000, sl.z);
-  bedFor(i, offMM);
+// a, b = height of the start and far end above the line (mm); the tilt is drawn 3x so you can see it
+function setBrickHeight(i, a, b) {
+  const sl = game.slots[i], brick = bricks.get(i), mid = (a + b) / 2;
+  brick.position.set(sl.x, slotY(sl) + mid / 1000, sl.z);
+  const tilt = Math.atan((b - a) / 1000 * 3 / sl.len);
+  if (sl.rot) brick.rotation.set(-tilt, Math.PI / 2, 0); else brick.rotation.set(0, 0, tilt);
+  bedFor(i, mid);
 }
 function headJoint(i) {
   const sl = game.slots[i];
@@ -355,11 +358,7 @@ function updateHUD() {
   $('streak').textContent = `Streak ${s.streak}${mult > 1 ? ` · ×${mult}` : ''}`;
   $('streak').classList.toggle('hot', mult > 1);
   $('gauge').hidden = !s.setting;
-  if (s.setting) {
-    const off = s.setting.offset, pct = (8 - Math.max(-4, Math.min(8, off))) / 12 * 100;
-    $('gaugeMark').style.top = pct + '%';
-    $('gaugeVal').textContent = (off >= 0 ? '+' : '−') + Math.abs(off).toFixed(1) + ' mm';
-  }
+  if (s.setting) drawGauge();
   // ghost and hit boxes follow the current slot
   const show = sl && !s.setting;
   ghost.visible = !!show;
@@ -407,7 +406,7 @@ function labelFor(act) {
   return ['', false];
 }
 
-function act(target, hold) {
+function act(target, hold, u = 0.5) {
   if (!target || !playing) return;
   const s = game.state, now = nowS();
   let r;
@@ -417,7 +416,7 @@ function act(target, hold) {
   else if (target === 'slot') {
     const a = game.nextAction(now);
     r = a === 'spread' || a === 'load' ? game.spread(now) : a === 'scrape' ? game.scrape(now) : game.place(now);
-  } else if (target === 'brick') r = game.hit(hold, now);
+  } else if (target === 'brick') r = game.hit(hold, u, now);
   if (!r.ok) { flyText(r.msg, 'bad'); return; }
 
   if (r.event === 'loaded') { play('R', 'scoop', 420); sfx('squish'); fact('firstLoad'); }
@@ -438,7 +437,7 @@ function act(target, hold) {
       o.material.color.setRGB(k, k * (0.95 + Math.random() * 0.06), k * (0.93 + Math.random() * 0.06));
     });
     bricks.set(r.slot, b); wall.add(b);
-    setBrickHeight(r.slot, r.offset);
+    setBrickHeight(r.slot, r.a, r.b);
     play('L', 'reach', 380); sfx('thock'); fact('firstPlace');
     if (r.apprentice) {
       setTimeout(() => sfx('clack'), 450);
@@ -448,7 +447,7 @@ function act(target, hold) {
   if (r.event === 'hit' || r.event === 'set' || r.event === 'sunk') {
     play('R', r.knock ? 'knock' : 'tap', r.knock ? 260 : 180); sfx(r.knock ? 'knock' : 'tap'); shake = r.knock ? 0.006 : 0.002;
   }
-  if (r.event === 'hit') setBrickHeight(r.slot, r.offset);
+  if (r.event === 'hit') setBrickHeight(r.slot, r.a, r.b);
   if (r.event === 'sunk') {
     wall.remove(bricks.get(r.slot)); bricks.delete(r.slot);
     bedFor(r.slot, 6, now);
@@ -456,7 +455,7 @@ function act(target, hold) {
     flyText('Too low. Re-lay it', 'bad'); fact('firstSunk');
   }
   if (r.event === 'set') {
-    setBrickHeight(r.slot, r.offset);
+    setBrickHeight(r.slot, r.a, r.b);
     headJoint(r.slot);
     setTimeout(() => (r.grade === 'perfect' ? sfx('ding', r.streak) : sfx('ok')), 80);
     flyText(`${r.grade[0].toUpperCase() + r.grade.slice(1)} +${euro(r.pay)}${r.mult > 1 ? ` ×${r.mult}` : ''}`, r.grade);
@@ -555,7 +554,37 @@ const keys = new Set();
 function targetAt(ndc) {
   ray.setFromCamera(ndc, camera);
   const hit = ray.intersectObjects(hits.filter(h => h.visible), false).find(h => h.distance < REACH);
-  return hit ? hit.object.userData.act : null;
+  return hit ? { act: hit.object.userData.act, point: hit.point } : null;
+}
+// where along the current brick a point lies: 0 = start end, 1 = far end
+function alongBrick(point) {
+  const sl = game.slots[game.state.cur];
+  if (!sl || !point) return 0.5;
+  const t = sl.rot ? (point.z - (sl.z - sl.len / 2)) / sl.len : (point.x - (sl.x - sl.len / 2)) / sl.len;
+  return Math.max(0, Math.min(1, t));
+}
+// is the start end of the current slot on the left of the screen?
+function startIsLeft() {
+  const sl = game.slots[game.state.cur];
+  if (!sl) return true;
+  const h = sl.len / 2, y = slotY(sl);
+  const p0 = new THREE.Vector3(sl.x - (sl.rot ? 0 : h), y, sl.z - (sl.rot ? h : 0)).project(camera);
+  const p1 = new THREE.Vector3(sl.x + (sl.rot ? 0 : h), y, sl.z + (sl.rot ? h : 0)).project(camera);
+  return p0.x <= p1.x;
+}
+function endName(u) {
+  const lo = u < 0.35, hi = u > 0.65, left = startIsLeft();
+  return (left ? lo : hi) ? 'left end' : (left ? hi : lo) ? 'right end' : 'middle';
+}
+// side view of the brick against the string line: left and right as you see them
+function drawGauge() {
+  const st = game.state.setting;
+  const [l, r] = startIsLeft() ? [st.a, st.b] : [st.b, st.a];
+  const px = mm => Math.max(-30, Math.min(30, mm * 5));
+  const tilt = Math.atan2(px(r) - px(l), 120);
+  $('gBrick').style.transform = `translateY(${-(px(l) + px(r)) / 2}px) rotate(${-tilt}rad)`;
+  const f = mm => `${mm >= 0 ? '+' : '−'}${Math.abs(mm).toFixed(1)}`;
+  $('gaugeVal').textContent = `left ${f(l)} · right ${f(r)} mm`;
 }
 const ndcOf = e => { const r = canvas.getBoundingClientRect(); return new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); };
 
@@ -568,6 +597,7 @@ canvas.addEventListener('pointerdown', e => {
   }
   if (!locked) try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
   down = { t: performance.now(), x: e.clientX, y: e.clientY, target: locked ? targetAt(center) : targetAt(ndcOf(e)), dragged: false };
+  if (down.target) { down.u = alongBrick(down.target.point); down.target = down.target.act; }
 });
 canvas.addEventListener('pointermove', e => {
   if (!playing) return;
@@ -581,7 +611,7 @@ canvas.addEventListener('pointermove', e => {
 canvas.addEventListener('pointerup', () => {
   if (!down) return;
   const d = down; down = null;
-  if (!d.dragged) act(d.target, (performance.now() - d.t) / 1000);
+  if (!d.dragged) act(d.target, (performance.now() - d.t) / 1000, d.u);
 });
 canvas.addEventListener('pointercancel', () => { down = null; });
 document.addEventListener('pointerlockchange', () => {
@@ -641,13 +671,19 @@ function frame() {
   ghostFill.opacity = 0.18 + 0.12 * Math.sin(now / 300);
 
   if (playing) {
-    const tgt = locked ? targetAt(center) : null;
-    const [label, ok] = tgt ? labelFor(tgt) : ['', false];
+    const hit = locked ? targetAt(center) : null, tgt = hit && hit.act;
+    let [label, ok] = tgt ? labelFor(tgt) : ['', false];
+    if (tgt === 'brick') label = `Tap the ${endName(alongBrick(hit.point))} · hold to knock`;
+    if (down && down.target === 'brick' && !down.dragged) {
+      const held = (now - down.t) / 1000, mm = content.mm;
+      label = held < content.holdForKnock ? 'Light tap' : `Knock ~${Math.min(mm.knock[1], mm.knock[0] + (held - content.holdForKnock) * mm.knockPerSec).toFixed(1)} mm`;
+    }
     $('cross').hidden = !locked;
     $('label').textContent = label;
     $('cross').classList.toggle('on', !!tgt && ok);
     const charging = down && down.target === 'brick' && !down.dragged;
-    $('cross').style.setProperty('--charge', charging ? Math.min(1, (now - down.t) / 1000 / content.holdForKnock) : 0);
+    const full = content.holdForKnock + (content.mm.knock[1] - content.mm.knock[0]) / content.mm.knockPerSec;
+    $('cross').style.setProperty('--charge', charging ? Math.min(1, (now - down.t) / 1000 / full) : 0);
   }
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
@@ -659,4 +695,15 @@ resize();
 $('startBtn').disabled = false;
 requestAnimationFrame(frame);
 // console hook for play-testing: __bbb.act('tub'), __bbb.game.state …
-window.__bbb = { act, get game() { return game; }, setupJob, begin, get save() { return save; } };
+window.__bbb = {
+  act, get game() { return game; }, setupJob, begin, get save() { return save; },
+  look: (yaw, pitch) => { view.yaw = yaw; view.pitch = pitch; },
+  // freeze the current 3D frame into an <img>: screenshot tools can miss a live WebGL canvas
+  shot() {
+    renderer.render(scene, camera);
+    let img = $('dbgShot');
+    if (!img) { img = document.createElement('img'); img.id = 'dbgShot'; img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none'; $('app').insertBefore(img, $('hud')); }
+    img.src = canvas.toDataURL('image/jpeg', 0.85);
+  },
+  unshot() { $('dbgShot')?.remove(); },
+};

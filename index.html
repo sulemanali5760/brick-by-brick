@@ -17,6 +17,7 @@
   --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
   --label:'Barlow Semi Condensed','Barlow',system-ui,sans-serif;
 }
+*,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{height:100%}
 body{margin:0;background:var(--ink);color:var(--paper);font-family:var(--body);overflow:hidden}
@@ -48,13 +49,14 @@ button{font:inherit;cursor:pointer}
 #label{position:absolute;left:50%;top:calc(50% + 22px);transform:translateX(-50%);font-family:var(--label);font-weight:700;font-size:15px;
   white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.8)}
 
-#gauge{position:absolute;left:calc(50% + 64px);top:50%;transform:translateY(-50%);width:74px;height:190px;padding:10px 8px}
-.bar{position:relative;height:150px;width:12px;margin-left:8px;background:linear-gradient(to bottom,
-  rgba(244,242,237,.25) 0 58.3%, var(--perfect) 58.3% 75%, var(--good) 75% 83.3%, var(--bad) 83.3% 100%)}
-.bar::before{content:'line';position:absolute;left:16px;top:66.7%;transform:translateY(-50%);font-family:var(--label);font-size:11px;color:var(--muted)}
-.bar::after{content:'';position:absolute;left:-4px;right:-4px;top:66.7%;height:1.5px;background:#ff3d8b}
-#gaugeMark{position:absolute;left:-7px;width:26px;height:4px;margin-top:-2px;background:var(--paper);box-shadow:0 0 0 1.5px var(--ink);transition:top .12s ease-out}
-#gaugeVal{font-family:var(--label);font-weight:700;font-size:13px;margin-top:6px;font-variant-numeric:tabular-nums;white-space:nowrap}
+#gauge{position:absolute;left:50%;top:calc(50% + 48px);transform:translateX(-50%);width:200px;padding:8px 10px}
+/* side view of the brick: 1 mm = 5 px, string line at 37 px; green = within 1 mm, red = more than 2 mm low */
+.side{position:relative;height:74px;overflow:hidden;
+  background:linear-gradient(to bottom,transparent 0 32px,rgba(124,217,146,.3) 32px 42px,transparent 42px 47px,rgba(255,122,89,.22) 47px)}
+.side::after{content:'';position:absolute;left:0;right:0;top:36.5px;height:1.5px;background:#ff3d8b}
+#gBrick{position:absolute;left:50%;top:37px;width:120px;height:26px;margin-left:-60px;background:#a8432a;border:1.5px solid #6d2a1a;
+  transform-origin:50% 0;transition:transform .12s ease-out}
+#gaugeVal{font-family:var(--label);font-weight:700;font-size:13px;margin-top:5px;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
 
 #toast{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
   width:min(560px,calc(100% - 32px));padding:10px 14px;font-size:15px;line-height:1.4}
@@ -109,7 +111,7 @@ button{font:inherit;cursor:pointer}
 .plain{background:transparent;border:1.5px solid rgba(244,242,237,.3);color:var(--paper);font-family:var(--label);font-weight:600;font-size:15px;padding:10px 16px}
 .linkish{background:none;border:0;padding:0;margin-top:12px;color:var(--muted);font-size:12px;text-decoration:underline}
 .card.wide{width:min(620px,100%)}
-@media (prefers-reduced-motion:reduce){.fly{animation-duration:.01s}#gaugeMark{transition:none}}
+@media (prefers-reduced-motion:reduce){.fly{animation-duration:.01s}#gBrick{transition:none}}
 </style>
 </head>
 <body>
@@ -121,14 +123,14 @@ button{font:inherit;cursor:pointer}
       <div id="mortar" class="mortar" hidden><span>Mortar</span><i><b id="mortarFill"></b></i><em id="mortarSec"></em></div></div>
     <div class="panel stats"><div id="pay">€0.00</div><div id="count"></div><div id="streak"></div></div>
     <div id="cross" hidden></div><div id="label"></div>
-    <div id="gauge" class="panel" hidden><div class="bar"><div id="gaugeMark"></div></div><div id="gaugeVal"></div></div>
+    <div id="gauge" class="panel" hidden><div class="side"><div id="gBrick"></div></div><div id="gaugeVal"></div></div>
     <div id="toast" class="panel" aria-live="polite" hidden></div>
     <div class="corner"><button id="mute">Sound on</button><span id="lockHint" hidden>Click the view to look around · Esc frees the mouse</span></div>
   </div>
 
   <div id="start" class="overlay">
     <div class="card panel">
-      <div class="eyebrow">Version 0.2</div>
+      <div class="eyebrow">Version 0.3</div>
       <h1>Brick by Brick</h1>
       <p>Lay real walls brick by brick. Keep every brick on the string line, lay it before the mortar goes off, and chain perfect bricks for bonus pay.</p>
       <div class="eyebrow">Jobs</div>
@@ -138,7 +140,7 @@ button{font:inherit;cursor:pointer}
         <dt>Look</dt><dd>Mouse (PC) · drag (phone)</dd>
         <dt>Move</dt><dd>W A S D, optional. Everything is in reach</dd>
         <dt>Work</dt><dd>Click, or tap the object on a phone</dd>
-        <dt>Set a brick</dt><dd>Click for a light tap, hold for a firm knock</dd>
+        <dt>Level a brick</dt><dd>Aim at the high end. Click for a light tap, hold longer for a harder knock</dd>
       </dl>
       <button id="startBtn" class="go" disabled>Loading…</button>
       <div id="loading" class="credit"></div>

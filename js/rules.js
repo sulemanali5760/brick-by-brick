@@ -111,37 +111,46 @@ export function createGame(content, job, upgrades = {}, rand = Math.random) {
     if (!s.hand) return fail('Take a brick first.');
     if (s.hand !== sl.kind) return fail(`This spot needs a ${sl.kind} brick.`);
     if (--s.handN === 0) s.hand = null;
-    s.setting = { slot: s.cur, offset: between(mm.placeOffset) };
-    const ev = { ok: true, event: 'placed', slot: s.cur, offset: s.setting.offset };
+    // the brick lands proud of the line and tilted: one end higher than the other
+    const base = between(mm.placeOffset), tilt = between(mm.tilt) * (rand() < 0.5 ? -1 : 1);
+    s.setting = { slot: s.cur, a: base - tilt / 2, b: base + tilt / 2 };
+    const ev = { ok: true, event: 'placed', slot: s.cur, a: s.setting.a, b: s.setting.b };
     const next = slots[s.cur + 1];
     if (upgrades.apprentice && !s.hand && next && s.stock[next.kind] > 0) { take(next.kind, 1); ev.apprentice = next.kind; }
     return ev;
   }
 
-  // hold = seconds the button was held; a long press is a firm knock
-  function hit(hold, now) {
+  // hold = seconds the button was held (a long press is a firm knock, harder the longer you hold);
+  // u = where along the brick you strike it, 0 = start end (a), 1 = far end (b). The struck end sinks most.
+  function hit(hold, u, now) {
     if (!s.setting) return fail('Nothing to tap.');
     const knock = hold >= content.holdForKnock;
-    s.setting.offset -= between(knock ? mm.knock : mm.tap);
-    const off = s.setting.offset, slot = s.cur, sl = slots[slot];
-    if (off > mm.lockAt) return { ok: true, event: 'hit', knock, offset: off, slot };
-    if (off < mm.sunk) {
+    const d = knock
+      ? Math.min(mm.knock[1], mm.knock[0] + (hold - content.holdForKnock) * mm.knockPerSec) * between([0.9, 1.1])
+      : between(mm.tap);
+    u = Math.max(0, Math.min(1, u));
+    const st = s.setting, slot = s.cur, sl = slots[slot];
+    st.a -= d * (0.25 + 0.75 * (1 - u));
+    st.b -= d * (0.25 + 0.75 * u);
+    const worst = Math.max(Math.abs(st.a), Math.abs(st.b)), base = { ok: true, knock, a: st.a, b: st.b, slot };
+    if (Math.min(st.a, st.b) < mm.sunk) {
       s.setting = null; s.relaid = true; s.streak = 0;
       if (s.hand === sl.kind) s.handN++; else { returnHand(); s.hand = sl.kind; s.handN = 1; }
       s.bedAt = now; // lifting the brick re-works the mortar
-      return { ok: true, event: 'sunk', knock, offset: off, slot };
+      return { ...base, event: 'sunk' };
     }
-    const grade = s.relaid ? 'rough' : Math.abs(off) <= mm.perfect ? 'perfect' : 'good';
+    if (Math.max(st.a, st.b) > mm.lockAt) return { ...base, event: 'hit' };
+    const grade = s.relaid ? 'rough' : worst <= mm.perfect ? 'perfect' : 'good';
     s.streak = grade === 'perfect' ? s.streak + 1 : 0;
     s.bestStreak = Math.max(s.bestStreak, s.streak);
     const mult = grade === 'perfect' ? multiplier(content, s.streak) : 1;
-    const r = { slot, offset: off, grade, mult, streak: s.streak, pay: Math.round(content.pay[grade] * mult * 100) / 100 };
+    const r = { slot, a: st.a, b: st.b, worst, grade, mult, streak: s.streak, pay: Math.round(content.pay[grade] * mult * 100) / 100 };
     s.results.push(r);
     s.setting = null; s.relaid = false; s.cur++;
-    const ev = { ok: true, event: 'set', knock, ...r };
+    const ev = { ...base, event: 'set', ...r };
     if (sl.last) {
       const course = s.results.filter(x => slots[x.slot].course === sl.course);
-      ev.course = { index: sl.course, avg: course.reduce((a, x) => a + Math.abs(x.offset), 0) / course.length };
+      ev.course = { index: sl.course, avg: course.reduce((acc, x) => acc + x.worst, 0) / course.length };
     }
     if (s.cur >= slots.length) { s.done = true; s.t1 = now; ev.done = true; }
     return ev;

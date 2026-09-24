@@ -37,25 +37,27 @@ let seed = 1;
 const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 for (const job of content.jobs) for (const up of [{}, { trowel: 1, tongs: 1, apprentice: 1 }, { retarder: 1 }]) {
   const g = createGame(content, job, up, rand);
-  let now = 0, scrapes = 0;
+  let now = 0;
   for (let guard = 0; !g.state.done && guard < 20000; guard++) {
     now += guard % 97 === 0 ? 60 : 1.5; // now and then dawdle long enough for the mortar to go off
     const a = g.nextAction(now);
     if (a === 'load') g.load(now);
     else if (a === 'spread') g.spread(now);
-    else if (a === 'scrape') { assert.ok(g.scrape(now).ok); scrapes++; }
+    else if (a === 'scrape') assert.ok(g.scrape(now).ok);
     else if (a === 'grab-full') g.grab('full', now);
     else if (a === 'grab-half' || a === 'swap') g.grab(g.slots[g.state.cur].kind, now);
     else if (a === 'place') assert.ok(g.place(now).ok, 'place');
-    else if (a === 'hit') g.hit(g.state.setting.offset > 3 ? 1 : 0, now);
+    else if (a === 'hit') {
+      const { a: ea, b: eb } = g.state.setting;
+      g.hit(Math.max(ea, eb) > 3 ? 0.4 : 0, Math.abs(ea - eb) > 0.6 ? (ea > eb ? 0 : 1) : 0.5, now);
+    }
   }
   const sum = g.summary(now);
   assert.equal(g.state.done, true, `${job.id} finished`);
   assert.equal(sum.bricks, g.slots.length);
   assert.equal(sum.perfect + sum.good + sum.rough, sum.bricks);
   assert.equal(g.state.stock.full + g.state.stock.half + g.state.handN, 0, `${job.id} no bricks left over`);
-  assert.ok(scrapes > 0, 'mortar went off at least once');
-  console.log(job.id, JSON.stringify(up), sum, 'scrapes', scrapes);
+  console.log(job.id, JSON.stringify(up), sum);
 }
 
 // streak multiplier kicks in at 3 perfect in a row
@@ -65,11 +67,30 @@ for (const job of content.jobs) for (const up of [{}, { trowel: 1, tongs: 1, app
   for (let i = 0; i < 4; i++) {
     g.load(0); if (g.nextAction(0) === 'spread') g.spread(0);
     g.grab('full', 0); g.place(0);
-    g.state.setting.offset = 0.5; // force a perfect landing on the next light tap
-    mults.push(g.hit(0, 0).mult);
+    g.state.setting.a = g.state.setting.b = 0.5; // force a perfect landing on the next light tap in the middle
+    mults.push(g.hit(0, 0.5, 0).mult);
     g.state.trowel = false;
   }
   assert.deepEqual(mults, [1, 1, 1.5, 1.5]);
+}
+
+// mortar goes off after its open time and has to be scraped
+{
+  const g = createGame(content, content.jobs[1], {}, () => 0.5);
+  g.load(0); g.spread(0);
+  assert.equal(g.nextAction(g.open - 1), 'grab-full');
+  assert.equal(g.nextAction(g.open + 1), 'scrape');
+  assert.ok(g.scrape(g.open + 1).ok);
+  assert.equal(g.nextAction(g.open + 1), 'load');
+}
+
+// striking one end sinks that end more than the other
+{
+  const g = createGame(content, content.jobs[0], {}, () => 0.5);
+  g.load(0); g.spread(0); g.grab('full', 0); g.place(0);
+  g.state.setting.a = g.state.setting.b = 5;
+  const r = g.hit(0, 0, 0);
+  assert.ok(r.a < r.b, 'left end went down more');
 }
 
 // shop and save
