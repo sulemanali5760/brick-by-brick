@@ -283,10 +283,85 @@
       "afterCourse": {
         "1": "Lead done. On real sites the best bricklayer sets out the first courses and the corners, and the walling in between goes faster. Press H to hand this wall to the robot and move on."
       }
+    },
+    {
+      "id": "window",
+      "name": "Window wall",
+      "mortarOpen": 25,
+      "lead": 2,
+      "sections": [
+        {
+          "layout": "straight",
+          "o": [
+            0,
+            0
+          ],
+          "rot": 0,
+          "face": 1,
+          "bricks": 8,
+          "courses": 12,
+          "openings": [
+            {
+              "kind": "window",
+              "from": 3,
+              "bricks": 2,
+              "sill": 2,
+              "head": 8
+            }
+          ],
+          "camera": [
+            1.0,
+            1.05,
+            0,
+            -0.72
+          ],
+          "robot": [
+            1.0,
+            -1.15,
+            3.1416
+          ]
+        }
+      ],
+      "bounds": [
+        -1.4,
+        3.3,
+        0.45,
+        2.6
+      ],
+      "pallet": [
+        -0.8,
+        0.55,
+        1.5708
+      ],
+      "halves": [
+        -0.22,
+        0.5
+      ],
+      "tub": [
+        2.5,
+        0.45
+      ],
+      "lintels": [
+        1.0,
+        2.0,
+        0
+      ],
+      "admire": [
+        1.0,
+        1.6,
+        2.6,
+        0,
+        -0.35
+      ],
+      "brief": "Window wall: eight bricks long, twelve courses high, with a window opening in the middle. Lay the first two courses yourself, then hand over. The robot leaves the gap open and closes each reveal with a half brick every other course. The lintel over the gap is yours to set: the robot will call you.",
+      "afterCourse": {
+        "1": "Lead done, and you're at sill height. From the next course up the window gap stays open. Press H to hand the wall to the robot.",
+        "7": "The opening is at full height. Next course: the precast lintel across the gap. The robot stops here and calls you over."
+      }
     }
   ],
   "comingNext": [
-    "Window opening with a lintel",
+    "Door opening",
     "Brick pillar",
     "Flemish bond",
     "Your own house wall"
@@ -335,7 +410,9 @@
     "hit": "Level it to the line: aim at the high end. Click = light tap, hold = firm knock",
     "done": "Job finished. Stand back and admire it",
     "watch": "The robot is finishing the walls. Watch it work, or walk around",
-    "handover": "Lead done: hand this wall to the robot (H) or keep laying"
+    "handover": "Lead done: hand this wall to the robot (H) or keep laying",
+    "grab-lintel": "This spot needs the lintel. Take one from the lintel stack",
+    "lintelCall": "The robot has reached the lintel course and stopped. Set the lintel over the window gap yourself"
   },
   "facts": {
     "firstLoad": "Mortar is roughly 1 part cement to 4 parts sand, mixed stiff and buttery. It starts to stiffen as soon as it's spread, so only spread what you can lay.",
@@ -345,7 +422,10 @@
     "mortarOff": "The mortar has gone off: it's too stiff to bed a brick properly. Scrape it back and spread fresh. Never lay onto stiff mortar, because the brick won't bond.",
     "streak": "Four perfect in a row: your pay goes up while the streak lasts. One sloppy brick resets it.",
     "proud": "The mortar went off before that brick reached the line, so it's stuck proud. Knock high bricks hard and fast, then finish with light taps.",
-    "robot": "From now on the bricklaying robot works with you. Lay the first two courses of a wall yourself, then hand it over and move on. Machines like this really exist: some lay around 3,000 bricks a day beside a human bricklayer."
+    "robot": "From now on the bricklaying robot works with you. Lay the first two courses of a wall yourself, then hand it over and move on. Machines like this really exist: some lay around 3,000 bricks a day beside a human bricklayer.",
+    "reveal": "That's a reveal, the side of the opening. Every other course ends at the gap with a half brick, so the bond carries on right up to the edge and the reveal stays straight.",
+    "lintel": "A clay-shell lintel (Flachsturz) must bear at least 115 mm on the brickwork each side. This one is 0.99 m long over a 0.51 m gap, so it sits 240 mm, a full brick, on each side.",
+    "overLintel": "The lintel on its own is weak. It gets its strength from the brickwork laid on top of it, which works as the compression zone, so the courses above count as part of the lintel."
   },
   "learned": {
     "garden": [
@@ -365,7 +445,17 @@
       "Bricklaying robots handle the repetitive walling, and a human still sets out and checks the work.",
       "Splitting a job into sections lets a crew work on several walls at once.",
       "Stretcher bond works the same on every wall: half-brick overlap, 10 mm head joints."
+    ],
+    "window": [
+      "Openings are sized in the brick grid: two bricks left out plus their joints make a 0.51 m gap.",
+      "At a reveal every other course ends with a half brick, so the bond carries on to the edge.",
+      "A clay-shell lintel needs at least 115 mm of bearing each side; this one gets a full brick, 240 mm.",
+      "A clay lintel works together with the brickwork above it: the courses on top are part of the lintel."
     ]
+  },
+  "lintel": {
+    "length": 0.99,
+    "minBearing": 0.115
   },
   "robot": {
     "unlockAfter": "garden",
