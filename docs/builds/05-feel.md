@@ -88,3 +88,14 @@ Also found: the stat "Re-laid" now counts bricks that set proud, so rename it to
 5. **Pause while the tab is hidden:** shift the mortar and job clocks by the hidden time.
 6. Art: darken the tub mortar texture.
 Re-run A2, A3, A4 and A6 on the live build after the fix.
+
+## 7. Final QA (0.5.4, automated acceptance run in GitHub Actions)
+
+| Check | Desktop 1280×800 | Small 640×400 | Phone 375×812 |
+|---|---|---|---|
+| A2 gauge never covers the brick (whole wall) | ✅ | ✅ | ✅ |
+| A4 card leaves the finished wall visible | ✅ | ✅ | ✅ |
+| A6 touch: spread and lay by tapping | n/a | n/a | ❌ deferred |
+| No page errors | ✅ | ✅ | ✅ |
+
+**Build 0.5 closed.** Deferred to the next plan: in portrait the first slot, the tub and the pallet start off-screen and the hands take up too much of the view. The phone needs its own control design (for example a tool belt with Mortar / Brick / Half buttons and a camera that follows the current brick), not a patch.
