@@ -47,7 +47,7 @@ function resize() {
 new ResizeObserver(resize).observe(canvas);
 
 /* ---------- loading ---------- */
-const MODELS = ['brick_nf', 'brick_half', 'trowel', 'fp_arms', 'mortar_tub', 'pallet_euro', 'line_pin', 'spirit_level', 'bauzaun', 'cement_bag', 'measuring_tape_01'];
+const MODELS = ['brick_nf', 'brick_half', 'trowel', 'fp_arms', 'mortar_tub', 'pallet_euro', 'line_pin', 'spirit_level', 'bauzaun', 'cement_bag', 'measuring_tape_01', 'robot'];
 let loaded = 0;
 const progress = () => { $('loading').textContent = `Loading site… ${loaded} / ${MODELS.length + 1}`; };
 progress();
@@ -176,7 +176,7 @@ ghost.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), ghostFill));
 ghost.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), ghostEdge));
 scene.add(ghost);
 
-let jobIndex = 0, job = content.jobs[0], game = createGame(content, job, save.upgrades);
+let jobIndex = 0, job = content.jobs[0], game = createGame(content, job, save.upgrades, Math.random, { robot: save.robot });
 const slotY = sl => FOOT_TOP + sl.y;
 // box dimensions for something lying along a slot: rot 1 runs along z
 const dims = (sl, along, h, across) => (sl.rot ? [across, h, along] : [along, h, across]);
@@ -212,29 +212,45 @@ function headJoint(i) {
   wall.add(m);
 }
 
-// string line: one pink line per wall, pins at both ends, moved up a course at a time
+// string lines: one pink line per wall on the side you work from, pins at both ends. Each wall's line
+// climbs a course at a time as that wall's courses are finished, by you or by the robot.
 const stringMat = new THREE.MeshStandardMaterial({ color: 0xff3d8b, emissive: 0x551028 });
-const line = { y: 0, target: 0 };
+let lineSets = [];
+const lineTargetFor = (section, course) => {
+  const sl = game.slots.find(x => x.section === section && x.course === course);
+  return sl ? slotY(sl) + BH : null;
+};
+function raiseLine(section, finished) { const y = lineTargetFor(section, finished + 1); if (y !== null) lineSets[section].target = y; }
 function buildLines() {
-  lines.clear();
+  lines.clear(); lineSets = [];
   const f = BD / 2 + 0.004;
-  const segs = job.layout === 'corner' ? [[0, f, 1.03, f], [BD + 0.004, f, BD + 0.004, 1.03]] : [[-0.04, f, 1.53, f]];
-  for (const [x1, z1, x2, z2] of segs) {
-    const len = Math.hypot(x2 - x1, z2 - z1);
-    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0012, len, 6), stringMat);
-    s.position.set((x1 + x2) / 2, 0, (z1 + z2) / 2);
-    if (x2 !== x1) s.rotation.z = Math.PI / 2; else s.rotation.x = Math.PI / 2;
-    lines.add(s);
-    for (const [x, z] of [[x1, z1], [x2, z2]]) { const p = M.line_pin.clone(); p.position.set(x, -0.125, z); lines.add(p); }
-  }
+  job.sections.forEach((sec, k) => {
+    const [ox, oz] = sec.o, fc = (sec.face ?? 1) * f, grp = new THREE.Group();
+    const segs = sec.layout === 'corner' ? [[ox, oz + f, ox + 1.03, oz + f], [ox + BD + 0.004, oz + f, ox + BD + 0.004, oz + 1.03]]
+      : sec.rot ? [[ox + fc, oz - 0.04, ox + fc, oz + 1.53]] : [[ox - 0.04, oz + fc, ox + 1.53, oz + fc]];
+    for (const [x1, z1, x2, z2] of segs) {
+      const len = Math.hypot(x2 - x1, z2 - z1);
+      const str = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0012, len, 6), stringMat);
+      str.position.set((x1 + x2) / 2, 0, (z1 + z2) / 2);
+      if (x2 !== x1) str.rotation.z = Math.PI / 2; else str.rotation.x = Math.PI / 2;
+      grp.add(str);
+      for (const [x, z] of [[x1, z1], [x2, z2]]) { const p = M.line_pin.clone(); p.position.set(x, -0.125, z); grp.add(p); }
+    }
+    lines.add(grp);
+    const y = lineTargetFor(k, 0);
+    lineSets.push({ group: grp, y, target: y });
+  });
 }
-const lineTargetFor = course => { const sl = game.slots.find(s => s.course === course); return slotY(sl) + BH; };
 
 function buildFooting() {
   footing.clear();
-  const parts = job.layout === 'corner'
-    ? [[1.22, 0.36, 0.49, 0], [0.36, 0.92, BD / 2, 0.64]]
-    : [[1.9, 0.36, 0.745, 0]];
+  const parts = [];
+  for (const sec of job.sections) {
+    const [ox, oz] = sec.o;
+    if (sec.layout === 'corner') parts.push([1.22, 0.36, ox + 0.49, oz], [0.36, 0.92, ox + BD / 2, oz + 0.64]);
+    else if (sec.rot) parts.push([0.36, 1.9, ox, oz + 0.745]);
+    else parts.push([1.9, 0.36, ox + 0.745, oz]);
+  }
   for (const [sx, sz, x, z] of parts) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(sx, FOOT_TOP, sz), concrete);
     m.position.set(x, FOOT_TOP / 2, z);
@@ -245,17 +261,31 @@ function buildFooting() {
 
 function setupJob(i) {
   jobIndex = i; job = content.jobs[i];
-  game = createGame(content, job, save.upgrades);
-  wall.clear(); beds.clear(); bricks.clear();
+  game = createGame(content, job, save.upgrades, Math.random, { robot: save.robot });
+  wall.clear(); beds.clear(); bricks.clear(); drops.length = 0;
   buildFooting(); buildLines();
   pallet.position.set(job.pallet[0], 0, job.pallet[1]); pallet.rotation.y = job.pallet[2];
   halves.position.set(job.halves[0], 0, job.halves[1]);
   tub.position.set(job.tub[0], 0, job.tub[1]);
-  const [cx, cz, yaw, pitch] = job.camera;
-  camera.position.set(cx, 1.62, cz); view.yaw = yaw; view.pitch = pitch;
-  line.y = line.target = lineTargetFor(0);
+  const [cx, cz, yaw, pitch] = job.sections[0].camera;
+  camera.position.set(cx, 1.62, cz); view.yaw = yaw; view.pitch = pitch; camTween = null;
+  robot.group.visible = game.state.robot.on;
+  parkRobot(0);
   lastAction = null;
   updateHUD();
+}
+
+// a new brick mesh for a slot; real walls vary in tone, some bricks fired darker, some paler
+function newBrick(sl) {
+  const b = (sl.kind === 'half' ? M.brick_half : M.brick_nf).clone();
+  b.rotation.y = sl.rot ? Math.PI / 2 : 0;
+  b.traverse(o => {
+    if (!o.isMesh) return;
+    o.material = o.material.clone();
+    const k = 0.82 + Math.random() * 0.28;
+    o.material.color.setRGB(k, k * (0.9 + Math.random() * 0.12), k * (0.88 + Math.random() * 0.12));
+  });
+  return b;
 }
 
 /* ---------- first-person rig ---------- */
@@ -301,6 +331,53 @@ function armPose(name, arm, now) {
   arm.position.copy(p); arm.rotation.copy(r);
 }
 
+/* ---------- the bricklaying robot ---------- */
+const angleDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+const robot = {
+  group: new THREE.Group(), drive: null, armYaw: 0, dipT: -9,
+  base: M.robot.getObjectByName('RobotBase') || new THREE.Group(),
+  arm: M.robot.getObjectByName('RobotArm') || new THREE.Group(),
+};
+robot.group.add(robot.base, robot.arm);
+scene.add(robot.group);
+function parkRobot(k) {
+  const [x, z, yaw] = job.sections[k].robot;
+  robot.group.position.set(x, 0, z); robot.group.rotation.y = yaw; robot.drive = null; robot.armYaw = 0; robot.arm.rotation.y = 0;
+}
+function driveRobot(k, t) {
+  const [x, z, yaw] = job.sections[k].robot;
+  robot.drive = { t0: t, dur: content.robot.drive, from: robot.group.position.clone(), fromYaw: robot.group.rotation.y, to: new THREE.Vector3(x, 0, z), toYaw: yaw };
+  robot.armYaw = 0;
+}
+const drops = []; // bricks the robot is lowering into place
+function robotLay(i, t) {
+  const sl = game.slots[i], p = robot.group.position;
+  robot.armYaw = angleDiff(Math.atan2(-(sl.x - p.x), -(sl.z - p.z)), robot.group.rotation.y); // boom towards the brick
+  robot.dipT = t;
+  const b = newBrick(sl);
+  b.position.set(sl.x, slotY(sl) + 0.3, sl.z);
+  wall.add(b); bricks.set(i, b);
+  bedFor(i, 0, t); headJoint(i);
+  drops.push({ b, y: slotY(sl), t0: t });
+  sfx('servo');
+}
+function stepRobot(t) {
+  const d = robot.drive;
+  if (d) {
+    const k = Math.min(1, (t - d.t0) / d.dur), e = k * k * (3 - 2 * k);
+    robot.group.position.lerpVectors(d.from, d.to, e);
+    robot.group.rotation.y = d.fromYaw + angleDiff(d.toYaw, d.fromYaw) * e;
+    if (k >= 1) robot.drive = null;
+  }
+  robot.arm.rotation.y += angleDiff(robot.armYaw, robot.arm.rotation.y) * 0.25;
+  robot.arm.position.y = -0.1 * Math.sin(Math.PI * Math.min(1, Math.max(0, (t - robot.dipT) / 0.35)));
+  for (let i = drops.length - 1; i >= 0; i--) {
+    const q = drops[i], k = Math.min(1, (t - q.t0) / 0.3);
+    q.b.position.y = q.y + 0.3 * (1 - k * k);
+    if (k >= 1) drops.splice(i, 1);
+  }
+}
+
 /* ---------- sound (synthesised, starts on the Start click) ---------- */
 let ac = null, master = null, muted = false, noiseBuf = null;
 function audioInit() {
@@ -336,6 +413,8 @@ const SFX = {
   ok: () => tone(880, 880, 0.18, 'sine', 0.14),
   sunk: () => tone(300, 90, 0.35, 'sine', 0.4),
   course: () => [523, 659, 784].forEach((f, i) => tone(f, f, 0.25, 'sine', 0.16, i * 0.09)),
+  servo: () => { tone(420, 690, 0.14, 'square', 0.035); hiss(0.05, 'lowpass', 900, 300, 0.12); },
+  whoosh: () => hiss(0.5, 'bandpass', 400, 2400, 0.3),
 };
 const sfx = (k, arg) => { if (ac && !muted) SFX[k](arg); };
 
@@ -358,14 +437,28 @@ function flyText(text, cls) {
 const euro = n => '€' + n.toFixed(2);
 let lastAction = null;
 function updateHUD() {
-  const s = game.state, now = nowS(), a = game.nextAction(now), sl = game.slots[s.cur];
+  const s = game.state, now = nowS(), a = game.nextAction(now), sl = s.cur === null ? undefined : game.slots[s.cur];
   lastAction = a;
   $('task').textContent = content.clipboard[a];
-  const perCourse = sl ? game.slots.filter(x => x.course === sl.course).length : 0;
-  $('where').textContent = sl ? `${job.name} · course ${sl.course + 1} of ${job.courses} · brick ${sl.i + 1} of ${perCourse}` : `${job.name} · all courses laid`;
+  const many = job.sections.length > 1;
+  if (sl) {
+    const perCourse = game.slots.filter(x => x.section === sl.section && x.course === sl.course).length;
+    $('where').textContent = `${job.name}${many ? ` · wall ${sl.section + 1} of ${job.sections.length}` : ''} · course ${sl.course + 1} of ${job.sections[sl.section].courses} · brick ${sl.i + 1} of ${perCourse}`;
+  } else $('where').textContent = `${job.name} · ${s.done ? 'finished' : 'the robot is on it'}`;
+  const canHand = game.canHandOver();
+  $('hint').hidden = !canHand;
+  $('hint').textContent = content.clipboard.handover;
+  $('handBtn').hidden = !canHand;
+  const rb = s.robot;
+  $('robotLine').hidden = !rb.on;
+  if (rb.on) {
+    const k = rb.queue[0], left = k === undefined ? 0 : s.secs[k].to - s.secs[k].cur;
+    $('robotLine').textContent = k === undefined ? 'Robot: idle' : robot.drive ? `Robot: driving to wall ${k + 1}` : `Robot: wall ${k + 1} · ${left} left${rb.queue.length > 1 ? ` · ${rb.queue.length - 1} queued` : ''}`;
+  }
   const sum = game.summary(now), mult = multiplier(content, s.streak);
   $('pay').textContent = euro(sum.pay);
   $('count').textContent = `${sum.bricks} / ${sum.total} bricks`;
+  $('progFill').style.width = `${sum.bricks / sum.total * 100}%`;
   $('streak').textContent = `Streak ${s.streak}${mult > 1 ? ` · ×${mult}` : ''}`;
   $('streak').classList.toggle('hot', mult > 1);
   $('gauge').hidden = !s.setting;
@@ -417,8 +510,14 @@ function labelFor(act) {
   return ['', false];
 }
 
+function doHandOver() {
+  if (!playing || camTween) return;
+  const r = game.handOver(nowS());
+  if (!r.ok) { flyText(r.msg, 'bad'); return; }
+  handle(r, nowS());
+}
 function act(target, hold, u = 0.5) {
-  if (!target || !playing) return;
+  if (!target || !playing || camTween) return;
   const now = nowS();
   let r;
   if (target === 'tub') r = game.load(now);
@@ -443,15 +542,7 @@ function handle(r, now) {
   }
   if (r.event === 'grabbed') { play('L', 'reach', 380); sfx('clack'); }
   if (r.event === 'placed') {
-    const sl = game.slots[r.slot];
-    const b = (sl.kind === 'half' ? M.brick_half : M.brick_nf).clone();
-    b.rotation.y = sl.rot ? Math.PI / 2 : 0;
-    b.traverse(o => {
-      if (!o.isMesh) return;
-      o.material = o.material.clone();
-      const k = 0.82 + Math.random() * 0.28; // real walls vary: some bricks fired darker, some paler
-      o.material.color.setRGB(k, k * (0.9 + Math.random() * 0.12), k * (0.88 + Math.random() * 0.12));
-    });
+    const b = newBrick(game.slots[r.slot]);
     bricks.set(r.slot, b); wall.add(b);
     setBrickHeight(r.slot, r.a, r.b);
     play('L', 'reach', 380); sfx('thock'); fact('firstPlace');
@@ -479,10 +570,25 @@ function handle(r, now) {
     if (r.streak === 4) fact('streak');
     if (r.course) {
       setTimeout(() => sfx('course'), 350);
-      const c = r.course.index, note = job.afterCourse[String(c)];
+      const c = r.course.index, note = r.course.section === 0 ? job.afterCourse[String(c)] : undefined;
       toast(note ?? `Course ${c + 1} done. Average ${r.course.avg.toFixed(1)} mm off the line.`);
-      if (!r.done) line.target = lineTargetFor(c + 1);
+      raiseLine(r.course.section, c);
     }
+    if (r.sectionDone !== undefined && job.sections.length > 1) toast(`Wall ${r.sectionDone + 1} finished.`);
+    if (r.moveTo !== undefined) travelTo(r.moveTo);
+    if (r.done) finish();
+  }
+  if (r.event === 'handover') {
+    sfx('whoosh');
+    toast(`Wall ${r.section + 1} handed to the robot.${r.moveTo !== undefined ? ` On to wall ${r.moveTo + 1}.` : ' Watch it finish.'}`);
+    if (r.robotDrive !== undefined) driveRobot(r.robotDrive, now);
+    if (r.moveTo !== undefined) travelTo(r.moveTo);
+  }
+  if (r.event === 'robotLaid') {
+    robotLay(r.slot, now);
+    if (r.course) raiseLine(r.course.section, r.course.index);
+    if (r.sectionDone !== undefined) { setTimeout(() => sfx('course'), 250); toast(`Wall ${r.sectionDone + 1} finished.`, 'Robot'); }
+    if (r.robotDrive !== undefined) driveRobot(r.robotDrive, now);
     if (r.done) finish();
   }
   updateHUD();
@@ -508,9 +614,9 @@ $('jobs').addEventListener('click', e => {
 function renderShop() {
   $('endWallet').textContent = euro(save.money);
   $('shop').innerHTML = content.upgrades.map(u => {
-    const own = !!save.upgrades[u.id];
+    const own = !!save.upgrades[u.id], locked = u.needsRobot && !save.robot;
     return `<div class="item"><div><b>${u.name}</b><span>${u.desc}</span></div>
-      <button class="buy" data-buy="${u.id}" ${own || save.money < u.price ? 'disabled' : ''}>${own ? 'Owned' : euro(u.price)}</button></div>`;
+      <button class="buy" data-buy="${u.id}" ${own || locked || save.money < u.price ? 'disabled' : ''}>${own ? 'Owned' : locked ? 'Needs robot' : euro(u.price)}</button></div>`;
   }).join('');
 }
 $('shop').addEventListener('click', e => {
@@ -520,15 +626,16 @@ $('shop').addEventListener('click', e => {
 });
 
 function finish() {
-  const s = game.summary(nowS());
+  const s = game.summary(nowS()), hadRobot = save.robot;
   finishJob(save, content, jobIndex, s); storeSave();
   const mins = Math.floor(s.seconds / 60), secs = Math.round(s.seconds % 60);
   $('endTitle').textContent = `${job.name} finished`;
   $('endStats').innerHTML = [
-    ['Bricks laid', `${s.bricks}`], ['Perfect', `${Math.round(s.perfect / s.bricks * 100)}%`], ['Best streak', `${s.bestStreak}`],
-    ['Rough', `${s.rough}`], ['Time', `${mins}:${String(secs).padStart(2, '0')}`], ['Earned', euro(s.pay)],
+    ['Bricks by you', `${s.mine}`], ['Perfect', `${Math.round(s.perfect / Math.max(1, s.mine) * 100)}%`], ['Best streak', `${s.bestStreak}`],
+    s.robot ? ['By the robot', `${s.robot}`] : ['Rough', `${s.rough}`], ['Time', `${mins}:${String(secs).padStart(2, '0')}`], ['Earned', euro(s.pay)],
   ].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
-  $('learned').innerHTML = content.learned[job.id].map(x => `<li>${x}</li>`).join('');
+  $('learned').innerHTML = (!hadRobot && save.robot ? ['<b>New: the bricklaying robot joins you from the next job.</b> Lay the first two courses, then hand the wall over.'] : [])
+    .concat(content.learned[job.id]).map(x => `<li>${x}</li>`).join('');
   const next = content.jobs[jobIndex + 1];
   $('nextBtn').hidden = !next;
   if (next) $('nextBtn').textContent = `Next job: ${next.name}`;
@@ -543,20 +650,26 @@ function finish() {
   // when the card is a bottom sheet (< 1000 px wide), tilt down so the wall sits in the top 30% of the screen
   const sheet = canvas.clientWidth < 1000;
   const pitch = pitch0 - (sheet ? Math.atan(0.4 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) : 0);
-  admire = { t0: performance.now() + 700, from: { pos: camera.position.clone(), yaw: view.yaw, pitch: view.pitch }, to: { pos: new THREE.Vector3(x, y, z), yaw, pitch } };
+  camTween = { admire: true, t0: performance.now() + 700, dur: 2500, from: { pos: camera.position.clone(), yaw: view.yaw, pitch: view.pitch }, to: { pos: new THREE.Vector3(x, y, z), yaw, pitch } };
   setTimeout(() => { $('end').hidden = false; }, 3400);
 }
-let admire = null;
-function stepAdmire(now) {
-  const k = Math.max(0, Math.min(1, (now - admire.t0) / 2500)), e = k * k * (3 - 2 * k);
-  camera.position.lerpVectors(admire.from.pos, admire.to.pos, e);
-  view.yaw = admire.from.yaw + (admire.to.yaw - admire.from.yaw) * e;
-  view.pitch = admire.from.pitch + (admire.to.pitch - admire.from.pitch) * e;
-  rig.position.y = -0.4 * e; // lower the hands out of view
+// camera moves: walking to the next wall, and the admire shot at the end of a job
+let camTween = null;
+function travelTo(k) {
+  const [x, z, yaw, pitch] = job.sections[k].camera;
+  camTween = { t0: performance.now() + 500, dur: 1400, from: { pos: camera.position.clone(), yaw: view.yaw, pitch: view.pitch }, to: { pos: new THREE.Vector3(x, 1.62, z), yaw, pitch } };
+}
+function stepTween(now) {
+  const tw = camTween, k = Math.max(0, Math.min(1, (now - tw.t0) / tw.dur)), e = k * k * (3 - 2 * k);
+  camera.position.lerpVectors(tw.from.pos, tw.to.pos, e);
+  view.yaw = tw.from.yaw + angleDiff(tw.to.yaw, tw.from.yaw) * e;
+  view.pitch = tw.from.pitch + (tw.to.pitch - tw.from.pitch) * e;
+  if (tw.admire) rig.position.y = -0.4 * e; // lower the hands out of view
+  else if (k >= 1) camTween = null;
 }
 function begin(i) {
   audioInit();
-  admire = null; rig.position.y = 0; $('hud').hidden = false;
+  camTween = null; rig.position.y = 0; $('hud').hidden = false;
   selected = i; setupJob(i);
   $('start').hidden = true; $('end').hidden = true;
   playing = true;
@@ -566,6 +679,7 @@ function begin(i) {
   }
   $('lockHint').hidden = true;
   toast(job.brief);
+  if (game.state.robot.on && !told.has('robot')) setTimeout(() => fact('robot'), 8000);
 }
 $('startBtn').onclick = () => begin(selected);
 $('nextBtn').onclick = () => begin(jobIndex + 1);
@@ -690,6 +804,7 @@ addEventListener('keydown', e => {
   if (e.target.closest?.('button')) return;
   keys.add(e.code);
   if (e.code === 'KeyM') { muted = !muted; $('mute').textContent = muted ? 'Sound off' : 'Sound on'; }
+  if (e.code === 'KeyH') doHandOver();
 });
 addEventListener('keyup', e => keys.delete(e.code));
 // a hidden tab stops the frame loop; don't let the mortar set while the player is away
@@ -700,6 +815,7 @@ document.addEventListener('visibilitychange', () => {
 });
 addEventListener('blur', () => keys.clear());
 $('mute').onclick = () => { muted = !muted; $('mute').textContent = muted ? 'Sound off' : 'Sound on'; };
+$('handBtn').onclick = doHandOver;
 
 /* ---------- loop ---------- */
 const clock = new THREE.Clock();
@@ -712,7 +828,7 @@ function frame() {
     if (keys.has('KeyS') || keys.has('ArrowDown')) mz -= 1;
     if (keys.has('KeyA') || keys.has('ArrowLeft')) mx -= 1;
     if (keys.has('KeyD') || keys.has('ArrowRight')) mx += 1;
-    if (mx || mz) {
+    if ((mx || mz) && !camTween) {
       fwd.set(-Math.sin(view.yaw), 0, -Math.cos(view.yaw));
       side.set(Math.cos(view.yaw), 0, -Math.sin(view.yaw));
       camera.position.addScaledVector(fwd, mz * 1.6 * dt).addScaledVector(side, mx * 1.6 * dt);
@@ -721,13 +837,13 @@ function frame() {
       camera.position.z = Math.max(z0, Math.min(z1, camera.position.z));
     }
     const bob = (mx || mz) ? Math.sin(now / 140) * 0.012 : Math.sin(now / 900) * 0.003;
-    camera.position.y = 1.62 + bob;
-    const froze = game.tick(t);
-    if (froze) handle(froze, t);
+    if (!camTween) camera.position.y = 1.62 + bob;
+    for (const ev of game.tick(t)) handle(ev, t);
     if (game.nextAction(t) !== lastAction) updateHUD();
     updateMortar(t);
   }
-  if (admire) stepAdmire(now);
+  if (camTween) stepTween(now);
+  stepRobot(t);
   shake *= 0.85;
   camera.rotation.set(view.pitch + (Math.random() - 0.5) * shake, view.yaw + (Math.random() - 0.5) * shake, 0);
   armPose('R', armR, now); armPose('L', armL, now);
@@ -738,8 +854,7 @@ function frame() {
     const k = Math.min(1, (t - b.at) / game.open);
     if (b.k !== k) { b.k = k; b.mesh.material.color.copy(WET).lerp(DRY, k); }
   }
-  line.y += (line.target - line.y) * Math.min(1, dt * 5);
-  lines.position.y = line.y;
+  for (const L of lineSets) { L.y += (L.target - L.y) * Math.min(1, dt * 5); L.group.position.y = L.y; }
   ghostFill.opacity = 0.18 + 0.12 * Math.sin(now / 300);
 
   if (playing) {
@@ -769,7 +884,7 @@ $('startBtn').disabled = false;
 requestAnimationFrame(frame);
 // console hook for play-testing: __bbb.act('tub'), __bbb.game.state …
 window.__bbb = {
-  act, get game() { return game; }, setupJob, begin, get save() { return save; }, camera, scene, view, renderer,
+  act, handOver: doHandOver, camMoving: () => !!camTween && !camTween.admire, get game() { return game; }, setupJob, begin, get save() { return save; }, camera, scene, view, renderer,
   look: (yaw, pitch) => { view.yaw = yaw; view.pitch = pitch; },
   // measurements for the automated acceptance run (qa/acceptance.mjs), in CSS px
   qa: {

@@ -332,6 +332,42 @@ def make_arms():
     export("fp_arms", out)
 
 
+def stripe_image():
+    """Yellow and black safety stripes (45 degrees) for the robot's bumper."""
+    n = 128
+    X, Y = np.meshgrid(np.arange(n), np.arange(n))
+    band = ((X + Y) // 16) % 2 == 0
+    arr = np.where(band[..., None], np.array([0.95, 0.72, 0.02]), np.array([0.07, 0.07, 0.08]))
+    return image_from("hazard_stripes", arr.astype(float))
+
+
+def make_robot():
+    """Tracked bricklaying robot. RobotBase: tracks and chassis. RobotArm: turret, mast, boom and
+    gripper, which turns about the vertical axis through the origin. Boom points +Y (forward in game),
+    gripper tip at (0, 1.0, 0.93)."""
+    reset()
+    yellow = mat("robot_yellow", "#F2B705", rough=0.45, metal=0.1)
+    rubber = mat("track_rubber", "#26292D", rough=0.9)
+    steel = mat("robot_steel", "#7D868C", rough=0.4, metal=0.9)
+    dark = mat("robot_dark", "#33383D", rough=0.6)
+    beacon = mat("beacon", "#FF7A1A", rough=0.3)
+    stripes = mat("stripes", "#FFFFFF", rough=0.5, image=stripe_image())
+    base = [box("track", (0.18, 0.9, 0.22), (sx * 0.3, 0, 0.11), rubber, bevel=0.06) for sx in (-1, 1)]
+    base += [rod("wheel", (sx * 0.3 - 0.095, y, 0.11), (sx * 0.3 + 0.095, y, 0.11), 0.085, dark, 16) for sx in (-1, 1) for y in (-0.33, 0.33)]
+    base += [box("chassis", (0.5, 0.72, 0.26), (0, 0, 0.37), yellow, bevel=0.03),
+             box("bumper", (0.5, 0.02, 0.1), (0, 0.37, 0.34), stripes, uv=0.5)]
+    arm = [rod("turntable", (0, 0, 0.5), (0, 0, 0.58), 0.18, dark, 24),
+           box("mast", (0.12, 0.12, 0.72), (0, 0, 0.92), yellow, bevel=0.015),
+           box("boom", (0.1, 1.12, 0.09), (0, 0.44, 1.26), yellow, bevel=0.015),
+           box("counterweight", (0.22, 0.22, 0.16), (0, -0.2, 1.26), dark, bevel=0.02),
+           rod("drop", (0, 1.0, 1.22), (0, 1.0, 0.98), 0.012, steel, 10),
+           box("gripper", (0.28, 0.13, 0.04), (0, 1.0, 0.96), dark, bevel=0.008),
+           box("finger_a", (0.02, 0.13, 0.07), (-0.13, 1.0, 0.91), steel),
+           box("finger_b", (0.02, 0.13, 0.07), (0.13, 1.0, 0.91), steel),
+           rod("beacon", (0, 0, 1.28), (0, 0, 1.36), 0.035, beacon, 16)]
+    export("robot", [join(base, "RobotBase", smooth=False), join(arm, "RobotArm", smooth=False)])
+
+
 def make_line_pin():
     reset()
     steel = mat("pin_steel", "#6F777C", rough=0.45, metal=1.0)
@@ -381,7 +417,7 @@ def lineup():
     reset()
     report = {}
     x = 0.0
-    order = ["fp_arms", "trowel", "brick_nf", "brick_half", "line_pin", "spirit_level", "mortar_tub", "pallet_euro"]
+    order = ["fp_arms", "trowel", "brick_nf", "brick_half", "line_pin", "spirit_level", "mortar_tub", "pallet_euro", "robot"]
     for name in order:
         before = set(bpy.context.scene.objects)
         bpy.ops.import_scene.gltf(filepath=str(OUT / f"{name}.gltf"))
@@ -448,4 +484,5 @@ make_arms()
 make_line_pin()
 make_level()
 make_fence()
+make_robot()
 lineup()

@@ -20,6 +20,7 @@ Two pipelines, split by where a file comes from:
 | `pallet_euro.gltf` | EPAL pallet 1200 × 800 × 144 mm | Blender (script) | 2160 | — | real board and block layout; procedural pine grain |
 | `line_pin.gltf` | Steel line pin | Blender (script) | 76 | 6 KB | **origin = tip**; the string itself is drawn in the game |
 | `spirit_level.gltf` | 600 mm spirit level | Blender (script) | 348 | 36 KB | |
+| `robot.gltf` | Tracked bricklaying robot: `RobotBase` (tracks, chassis, hazard-stripe bumper) and `RobotArm` (turntable, mast, boom, gripper, beacon) | Blender (script) | 1220 | 116 KB | **origin = bottom centre**, boom towards +Y; `RobotArm` turns about the vertical axis through the origin; gripper tip at (0, 1.0, 0.93) |
 | `bauzaun.gltf` | Mobile site fence panel 3.5 × 2.0 m on feet | Blender (script) | 896 | 82 KB | wire mesh is real geometry, no alpha tricks |
 | `cement_bag.gltf` | Cement bag | [Poly Haven](https://polyhaven.com/a/cement_bag), CC0 | 844 | 1884 KB | re-origined by the CI converter |
 | `measuring_tape_01.gltf` | Tape measure | [Poly Haven](https://polyhaven.com/a/measuring_tape_01), CC0 | 2868 | 582 KB | set dressing |

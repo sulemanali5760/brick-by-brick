@@ -98,6 +98,14 @@ button{font:inherit;cursor:pointer}
 .mortar.low b{background:var(--bad)} .mortar.low em{color:var(--bad)}
 .mortar em{font-style:normal;font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
 #streak.hot{color:var(--hivis);font-weight:700}
+.hint{margin-top:6px;font-family:var(--label);font-weight:600;font-size:14px;color:var(--hivis)}
+.prog{height:5px;margin:6px 0 2px auto;width:100%;min-width:110px;background:rgba(244,242,237,.18)}
+.prog i{display:block;height:100%;width:0;background:var(--hivis);transition:width .3s}
+#robotLine{color:var(--paper)!important}
+.handBtn{position:absolute;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);pointer-events:auto;
+  font-family:var(--display);font-size:20px;background:var(--hivis);color:var(--ink);border:0;padding:10px 20px 11px;box-shadow:0 4px 0 #8a6600}
+.handBtn kbd{font-family:var(--label);font-size:12px;border:1.5px solid currentColor;padding:1px 5px;margin-left:6px;vertical-align:middle}
+@media (max-width:620px){.handBtn{bottom:calc(110px + env(safe-area-inset-bottom,0px));font-size:18px}}
 .jobs{list-style:none;margin:6px 0 14px;padding:0;display:grid;gap:4px}
 .job{width:100%;display:flex;justify-content:space-between;gap:12px;align-items:baseline;text-align:left;padding:8px 12px;
   background:rgba(244,242,237,.06);border:1.5px solid rgba(244,242,237,.18);color:var(--paper);font-family:var(--label);font-weight:700;font-size:16px}
@@ -126,12 +134,14 @@ button{font:inherit;cursor:pointer}
   <div id="hud">
     <div class="stackL">
     <div class="panel clip"><div class="eyebrow">Foreman's clipboard</div><div id="task">Loading…</div><div id="where"></div>
+      <div id="hint" class="hint" hidden></div>
       <div id="mortar" class="mortar" hidden><span>Mortar</span><i><b id="mortarFill"></b></i><em id="mortarSec"></em></div></div>
     <div id="toast" class="panel" aria-live="polite" hidden></div>
     </div>
-    <div class="panel stats"><div id="pay">€0.00</div><div id="count"></div><div id="streak"></div></div>
+    <div class="panel stats"><div id="pay">€0.00</div><div id="count"></div><div class="prog"><i id="progFill"></i></div><div id="streak"></div><div id="robotLine" hidden></div></div>
     <div id="cross" hidden></div><div id="label"></div>
     <div id="gauge" class="panel" hidden><div class="side"><div id="gBrick"></div></div><div id="gaugeVal"></div></div>
+    <button id="handBtn" class="handBtn" hidden>Hand over to the robot <kbd>H</kbd></button>
     <div class="corner"><button id="mute">Sound on</button><span id="lockHint" hidden>Click the view to look around · Esc frees the mouse</span></div>
   </div>
 
@@ -185,6 +195,6 @@ button{font:inherit;cursor:pointer}
   // show start-up failures on the start card instead of a silent "Loading…"
   addEventListener('error', e => { const l = document.getElementById('loading'); if (l) l.textContent = 'Could not start: ' + (e.message || 'a file failed to load'); }, true);
 </script>
-<script type="module" src="js/game.js?v=0.5.4"></script>
+<script type="module" src="js/game.js?v=0.6.0"></script>
 </body>
 </html>

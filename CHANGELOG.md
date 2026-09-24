@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6 — Crew: hand over and move on ([plan](docs/builds/06-momentum.md))
+- **Bricklaying robot:** unlocked by finishing the garden wall. Lay a wall's first two courses yourself (the lead sets the line and the bond), then **hand it over (H or the button)**. The robot finishes the wall while you move on. It turns its boom to each brick and lowers it into place.
+- **New job 3, Yard walls:** three walls around a yard. Lead each one, hand it over, and the camera walks you to the next wall. The robot drives from wall to wall through its queue.
+- The corner can also be handed over after its lead courses.
+- **Shop:** Robot: faster arm (€30) halves the time per brick.
+- **HUD:** job progress bar, robot status line, a hand-over button once the lead is done, and a string line per wall that climbs with that wall.
+- Robot bricks pay €0.30 each; your own Perfects still pay more.
+- **QA:** the rules tests cover sections, the lead gate, robot completion and stock conservation; the acceptance run plays Yard walls with hand-overs (A8).
+
 ## 0.5 — Feel pass ([plan](docs/builds/05-feel.md))
 - **New first-person hands** (Blender): tapered hi-vis sleeves, knit cuffs, a right fist gripping the trowel handle, a left hand gripping the brick from above. They now sit in view, and move inward on portrait phones.
 - **Closer framing:** the wall fills more of the screen.
