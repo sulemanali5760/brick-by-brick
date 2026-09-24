@@ -52,7 +52,7 @@ export function createGame(content, job, upgrades = {}, rand = Math.random) {
   const start = now => { if (s.t0 === null) s.t0 = now; };
   const courseEnd = i => { while (!slots[i].last) i++; return i; };
   const bedded = () => s.cur < s.bedUntil;
-  const stiff = now => bedded() && !s.setting && now - s.bedAt > open;
+  const stiff = now => bedded() && now - s.bedAt > open;
   const returnHand = () => { if (s.hand) s.stock[s.hand] += s.handN; s.hand = null; s.handN = 0; };
   const take = (kind, n) => { const k = Math.min(n, s.stock[kind]); s.stock[kind] -= k; s.hand = kind; s.handN = k; };
 
@@ -67,7 +67,7 @@ export function createGame(content, job, upgrades = {}, rand = Math.random) {
   }
 
   // seconds of working time left on the bed under the current slot, or null
-  const mortarLeft = now => (bedded() && !s.setting ? Math.max(0, open - (now - s.bedAt)) : null);
+  const mortarLeft = now => (bedded() ? Math.max(0, open - (now - s.bedAt)) : null);
 
   function load(now) {
     if (s.done) return fail('The job is finished.');
@@ -140,7 +140,19 @@ export function createGame(content, job, upgrades = {}, rand = Math.random) {
       return { ...base, event: 'sunk' };
     }
     if (Math.max(st.a, st.b) > mm.lockAt) return { ...base, event: 'hit' };
-    const grade = s.relaid ? 'rough' : worst <= mm.perfect ? 'perfect' : 'good';
+    return settle(now, s.relaid ? 'rough' : worst <= mm.perfect ? 'perfect' : 'good', base);
+  }
+
+  // called every frame: if the mortar goes off under a brick that is still proud, it sets where it is
+  function tick(now) {
+    if (!s.setting || !stiff(now)) return null;
+    const st = s.setting;
+    return settle(now, 'rough', { ok: true, knock: false, a: st.a, b: st.b, slot: s.cur, proud: true });
+  }
+
+  function settle(now, grade, base) {
+    const st = s.setting, slot = s.cur, sl = slots[slot];
+    const worst = Math.max(Math.abs(st.a), Math.abs(st.b));
     s.streak = grade === 'perfect' ? s.streak + 1 : 0;
     s.bestStreak = Math.max(s.bestStreak, s.streak);
     const mult = grade === 'perfect' ? multiplier(content, s.streak) : 1;
@@ -166,7 +178,7 @@ export function createGame(content, job, upgrades = {}, rand = Math.random) {
     };
   }
 
-  return { state: s, slots, open, nextAction, mortarLeft, load, spread, scrape, grab, place, hit, summary };
+  return { state: s, slots, open, nextAction, mortarLeft, load, spread, scrape, grab, place, hit, tick, summary };
 }
 
 /* ---------- campaign save: money, upgrades, unlocked jobs ---------- */

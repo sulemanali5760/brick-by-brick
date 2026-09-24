@@ -408,7 +408,7 @@ function labelFor(act) {
 
 function act(target, hold, u = 0.5) {
   if (!target || !playing) return;
-  const s = game.state, now = nowS();
+  const now = nowS();
   let r;
   if (target === 'tub') r = game.load(now);
   else if (target === 'pallet') r = game.grab('full', now);
@@ -418,6 +418,11 @@ function act(target, hold, u = 0.5) {
     r = a === 'spread' || a === 'load' ? game.spread(now) : a === 'scrape' ? game.scrape(now) : game.place(now);
   } else if (target === 'brick') r = game.hit(hold, u, now);
   if (!r.ok) { flyText(r.msg, 'bad'); return; }
+  handle(r, now);
+}
+
+// turn a rules event into visuals, sound and HUD
+function handle(r, now) {
 
   if (r.event === 'loaded') { play('R', 'scoop', 420); sfx('squish'); fact('firstLoad'); }
   if (r.event === 'spread') { play('R', 'spread', 480); sfx('scrape'); r.slots.forEach(i => bedFor(i, 6, now)); }
@@ -444,7 +449,7 @@ function act(target, hold, u = 0.5) {
       if (!told.has('apprentice')) { told.add('apprentice'); toast('Here you go, next one.', 'Apprentice'); }
     }
   }
-  if (r.event === 'hit' || r.event === 'set' || r.event === 'sunk') {
+  if (r.event === 'hit' || r.event === 'sunk' || (r.event === 'set' && !r.proud)) {
     play('R', r.knock ? 'knock' : 'tap', r.knock ? 260 : 180); sfx(r.knock ? 'knock' : 'tap'); shake = r.knock ? 0.006 : 0.002;
   }
   if (r.event === 'hit') setBrickHeight(r.slot, r.a, r.b);
@@ -457,9 +462,9 @@ function act(target, hold, u = 0.5) {
   if (r.event === 'set') {
     setBrickHeight(r.slot, r.a, r.b);
     headJoint(r.slot);
-    setTimeout(() => (r.grade === 'perfect' ? sfx('ding', r.streak) : sfx('ok')), 80);
-    flyText(`${r.grade[0].toUpperCase() + r.grade.slice(1)} +${euro(r.pay)}${r.mult > 1 ? ` ×${r.mult}` : ''}`, r.grade);
-    fact('firstSet');
+    setTimeout(() => (r.grade === 'perfect' ? sfx('ding', r.streak) : r.proud ? sfx('sunk') : sfx('ok')), 80);
+    if (r.proud) { flyText(`Set proud: mortar went off +${euro(r.pay)}`, 'rough'); fact('proud'); }
+    else { flyText(`${r.grade[0].toUpperCase() + r.grade.slice(1)} +${euro(r.pay)}${r.mult > 1 ? ` ×${r.mult}` : ''}`, r.grade); fact('firstSet'); }
     if (r.streak === 3) fact('streak');
     if (r.course) {
       setTimeout(() => sfx('course'), 350);
@@ -653,6 +658,8 @@ function frame() {
     }
     const bob = (mx || mz) ? Math.sin(now / 140) * 0.012 : Math.sin(now / 900) * 0.003;
     camera.position.y = 1.62 + bob;
+    const froze = game.tick(t);
+    if (froze) handle(froze, t);
     if (game.nextAction(t) !== lastAction) updateHUD();
     updateMortar(t);
   }

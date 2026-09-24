@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4 — Mortar sets under the brick too
+- **Balance fix:** the 0.3 bot still scored 100% Perfect, because patient light taps cost nothing. The mortar now keeps setting while you level a brick. If it goes off first, the brick **sets proud** where it is and pays Rough. That makes a real choice between fast knocks and careful taps.
+- The mortar bar stays visible while you're levelling.
+
 ## 0.3 — Level both ends
 - **Design fix:** play-testing showed a bot could score 52/52 Perfect by tapping blindly. Bricks now land **tilted**. You tap where you aim (left end, middle or right end), and **both ends** must finish within 1 mm of the line.
 - The knock is now analogue: the longer you hold, the harder it strikes (2–5 mm). The crosshair shows the charge and the expected knock.

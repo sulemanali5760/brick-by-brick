@@ -68,7 +68,8 @@
     "firstSet": "On the line. The mortar under it, the bed joint, ends up about 12 mm thick.",
     "firstSunk": "Too low: you squeezed out too much mortar. Lift it and lay it again. Light taps near the line, firm knocks only when it sits high.",
     "mortarOff": "The mortar has gone off: it's too stiff to bed a brick properly. Scrape it back and spread fresh. Never lay onto stiff mortar, because the brick won't bond.",
-    "streak": "Three perfect in a row: your pay goes up while the streak lasts. One sloppy brick resets it."
+    "streak": "Three perfect in a row: your pay goes up while the streak lasts. One sloppy brick resets it.",
+    "proud": "The mortar went off before that brick reached the line, so it's stuck proud. Knock high bricks hard and fast, then finish with light taps."
   },
   "learned": {
     "garden": [

@@ -40,6 +40,7 @@ for (const job of content.jobs) for (const up of [{}, { trowel: 1, tongs: 1, app
   let now = 0;
   for (let guard = 0; !g.state.done && guard < 20000; guard++) {
     now += guard % 97 === 0 ? 60 : 1.5; // now and then dawdle long enough for the mortar to go off
+    g.tick(now);
     const a = g.nextAction(now);
     if (a === 'load') g.load(now);
     else if (a === 'spread') g.spread(now);
@@ -82,6 +83,16 @@ for (const job of content.jobs) for (const up of [{}, { trowel: 1, tongs: 1, app
   assert.equal(g.nextAction(g.open + 1), 'scrape');
   assert.ok(g.scrape(g.open + 1).ok);
   assert.equal(g.nextAction(g.open + 1), 'load');
+}
+
+// a brick left proud when the mortar goes off sets where it is, as Rough
+{
+  const g = createGame(content, content.jobs[0], {}, () => 0.5);
+  g.load(0); g.spread(0); g.grab('full', 0); g.place(1);
+  assert.equal(g.tick(g.open - 1), null);
+  const r = g.tick(g.open + 1);
+  assert.equal(r.event, 'set'); assert.equal(r.grade, 'rough'); assert.equal(r.proud, true);
+  assert.equal(g.nextAction(g.open + 1), 'scrape', 'the second bed went off too');
 }
 
 // striking one end sinks that end more than the other
