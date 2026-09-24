@@ -11,7 +11,11 @@ $('ver').textContent = `Version ${V}`;
 const W = content.wall;
 const [, BD, BH] = W.brick;
 const FOOT_TOP = 0.25, REACH = 2.8;
-const nowS = () => performance.now() / 1000;
+// One game clock drives rules, mortar, robot and animations. It only advances inside the frame loop
+// while you play, so a hidden tab pauses the game and fast-forward is just a speed factor.
+const gameClock = { t: 0, speed: 1 };
+const nowS = () => gameClock.t;
+let fastForward = false;
 
 /* ---------- save (money, upgrades, unlocked jobs) ---------- */
 const SAVE_KEY = 'brick-by-brick-save-v1';
@@ -445,6 +449,14 @@ function updateHUD() {
     const perCourse = game.slots.filter(x => x.section === sl.section && x.course === sl.course).length;
     $('where').textContent = `${job.name}${many ? ` · wall ${sl.section + 1} of ${job.sections.length}` : ''} · course ${sl.course + 1} of ${job.sections[sl.section].courses} · brick ${sl.i + 1} of ${perCourse}`;
   } else $('where').textContent = `${job.name} · ${s.done ? 'finished' : 'the robot is on it'}`;
+  $('belt').hidden = !touchMode;
+  for (const b of $('belt').querySelectorAll('[data-act]')) {
+    const k = b.dataset.act;
+    b.classList.toggle('on', (k === 'tub' && s.trowel) || (k === 'pallet' && s.hand === 'full') || (k === 'halves' && s.hand === 'half'));
+    b.classList.toggle('want', (k === 'tub' && a === 'load') || (k === 'pallet' && a === 'grab-full') || (k === 'halves' && (a === 'grab-half' || (a === 'swap' && sl && sl.kind === 'half'))));
+  }
+  $('ffBtn').hidden = a !== 'watch';
+  $('ffBtn').textContent = fastForward ? 'Speed ×4 · on' : 'Speed ×4';
   const canHand = game.canHandOver();
   $('hint').hidden = !canHand;
   $('hint').textContent = content.clipboard.handover;
@@ -669,7 +681,7 @@ function stepTween(now) {
 }
 function begin(i) {
   audioInit();
-  camTween = null; rig.position.y = 0; $('hud').hidden = false;
+  camTween = null; rig.position.y = 0; $('hud').hidden = false; fastForward = false;
   selected = i; setupJob(i);
   $('start').hidden = true; $('end').hidden = true;
   playing = true;
@@ -772,6 +784,7 @@ canvas.addEventListener('pointerdown', e => {
     if (p && p.catch) p.catch(() => { lockFailed = true; });
     return;
   }
+  if (e.pointerType === 'touch' && !touchMode) { touchMode = true; updateHUD(); }
   if (!locked) try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
   const ndc = locked ? center : ndcOf(e), hit = targetAt(ndc);
   down = { t: performance.now(), x: e.clientX, y: e.clientY, target: hit && hit.act, u: alongBrick(ndc), dragged: false };
@@ -781,6 +794,7 @@ canvas.addEventListener('pointermove', e => {
   if (locked) { look(e.movementX * 0.0022, e.movementY * 0.0022); return; }
   if (down && (down.dragged || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8)) {
     if (!down.dragged) { down.dragged = true; down.lx = e.clientX; down.ly = e.clientY; }
+    lastDrag = performance.now();
     look((e.clientX - down.lx) * 0.005, (e.clientY - down.ly) * 0.005);
     down.lx = e.clientX; down.ly = e.clientY;
   }
@@ -805,23 +819,39 @@ addEventListener('keydown', e => {
   keys.add(e.code);
   if (e.code === 'KeyM') { muted = !muted; $('mute').textContent = muted ? 'Sound off' : 'Sound on'; }
   if (e.code === 'KeyH') doHandOver();
+  if (e.code === 'KeyF') toggleFast();
 });
 addEventListener('keyup', e => keys.delete(e.code));
-// a hidden tab stops the frame loop; don't let the mortar set while the player is away
-let hiddenAt = null;
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) hiddenAt = nowS();
-  else if (hiddenAt !== null) { game.shift(nowS() - hiddenAt); beds.forEach(b => { b.at += nowS() - hiddenAt; }); hiddenAt = null; }
-});
+
 addEventListener('blur', () => keys.clear());
 $('mute').onclick = () => { muted = !muted; $('mute').textContent = muted ? 'Sound off' : 'Sound on'; };
 $('handBtn').onclick = doHandOver;
+function toggleFast() { fastForward = !fastForward; updateHUD(); }
+$('ffBtn').onclick = toggleFast;
+// touch screens: a tool belt instead of turning round to the tub and pallet, and a camera that keeps
+// the brick you're working on in view (unless you dragged the view in the last 2 s)
+let touchMode = matchMedia('(pointer: coarse)').matches, lastDrag = -1e9;
+$('belt').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) { if (b.dataset.act === 'sound') { muted = !muted; b.textContent = muted ? 'Sound off' : 'Sound'; } else act(b.dataset.act, 0); } });
+function followBrick(dt) {
+  const s = game.state, sl = s.cur === null ? null : game.slots[s.cur];
+  if (!sl || camTween || performance.now() - lastDrag < 2000) return;
+  const p = new THREE.Vector3(sl.x, slotY(sl) + BH / 2, sl.z).project(camera);
+  if (Math.abs(p.x) < 0.6 && p.z < 1) return;
+  const want = Math.atan2(-(sl.x - camera.position.x), -(sl.z - camera.position.z));
+  view.yaw += angleDiff(want, view.yaw) * Math.min(1, dt * 3);
+}
 
 /* ---------- loop ---------- */
 const clock = new THREE.Clock();
 const fwd = new THREE.Vector3(), side = new THREE.Vector3();
 function frame() {
-  const dt = Math.min(0.05, clock.getDelta()), now = performance.now(), t = now / 1000;
+  const dt = Math.min(0.05, clock.getDelta()), now = performance.now();
+  if (playing) {
+    gameClock.speed = fastForward && game.nextAction(gameClock.t) === 'watch' ? 4 : 1;
+    gameClock.t += dt * gameClock.speed;
+  }
+  const t = gameClock.t;
+  if (playing && touchMode) followBrick(dt);
   if (playing) {
     let mx = 0, mz = 0;
     if (keys.has('KeyW') || keys.has('ArrowUp')) mz += 1;
@@ -884,7 +914,7 @@ $('startBtn').disabled = false;
 requestAnimationFrame(frame);
 // console hook for play-testing: __bbb.act('tub'), __bbb.game.state …
 window.__bbb = {
-  act, handOver: doHandOver, camMoving: () => !!camTween && !camTween.admire, get game() { return game; }, setupJob, begin, get save() { return save; }, camera, scene, view, renderer,
+  act, handOver: doHandOver, camMoving: () => !!camTween && !camTween.admire, toggleFast, clock: gameClock, get game() { return game; }, setupJob, begin, get save() { return save; }, camera, scene, view, renderer,
   look: (yaw, pitch) => { view.yaw = yaw; view.pitch = pitch; },
   // measurements for the automated acceptance run (qa/acceptance.mjs), in CSS px
   qa: {

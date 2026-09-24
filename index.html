@@ -105,7 +105,18 @@ button{font:inherit;cursor:pointer}
 .handBtn{position:absolute;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);pointer-events:auto;
   font-family:var(--display);font-size:20px;background:var(--hivis);color:var(--ink);border:0;padding:10px 20px 11px;box-shadow:0 4px 0 #8a6600}
 .handBtn kbd{font-family:var(--label);font-size:12px;border:1.5px solid currentColor;padding:1px 5px;margin-left:6px;vertical-align:middle}
-@media (max-width:620px){.handBtn{bottom:calc(110px + env(safe-area-inset-bottom,0px));font-size:18px}}
+.ffBtn{pointer-events:auto;margin-top:8px;font-family:var(--label);font-weight:700;font-size:13px;background:transparent;color:var(--hivis);border:1.5px solid var(--hivis);padding:4px 10px}
+/* touch screens: tool belt along the bottom */
+.belt{position:absolute;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:1fr 1fr 1fr .7fr;gap:8px;pointer-events:auto}
+.belt button{font-family:var(--label);font-weight:700;font-size:17px;padding:13px 6px;background:var(--glass);color:var(--paper);border:1.5px solid rgba(244,242,237,.3)}
+.belt button.small{font-size:14px;color:var(--muted)}
+.belt button.want{border-color:var(--hivis);color:var(--hivis)}
+.belt button.on{background:rgba(245,180,0,.2)}
+body:has(.belt:not([hidden])) .corner{display:none}
+@media (max-width:620px){
+  .handBtn{left:10px;transform:none;bottom:calc(76px + env(safe-area-inset-bottom,0px));font-size:17px}
+  body:has(.belt:not([hidden])) .stats{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+}
 .jobs{list-style:none;margin:6px 0 14px;padding:0;display:grid;gap:4px}
 .job{width:100%;display:flex;justify-content:space-between;gap:12px;align-items:baseline;text-align:left;padding:8px 12px;
   background:rgba(244,242,237,.06);border:1.5px solid rgba(244,242,237,.18);color:var(--paper);font-family:var(--label);font-weight:700;font-size:16px}
@@ -138,10 +149,11 @@ button{font:inherit;cursor:pointer}
       <div id="mortar" class="mortar" hidden><span>Mortar</span><i><b id="mortarFill"></b></i><em id="mortarSec"></em></div></div>
     <div id="toast" class="panel" aria-live="polite" hidden></div>
     </div>
-    <div class="panel stats"><div id="pay">€0.00</div><div id="count"></div><div class="prog"><i id="progFill"></i></div><div id="streak"></div><div id="robotLine" hidden></div></div>
+    <div class="panel stats"><div id="pay">€0.00</div><div id="count"></div><div class="prog"><i id="progFill"></i></div><div id="streak"></div><div id="robotLine" hidden></div><button id="ffBtn" class="ffBtn" hidden>Speed ×4</button></div>
     <div id="cross" hidden></div><div id="label"></div>
     <div id="gauge" class="panel" hidden><div class="side"><div id="gBrick"></div></div><div id="gaugeVal"></div></div>
     <button id="handBtn" class="handBtn" hidden>Hand over to the robot <kbd>H</kbd></button>
+    <div id="belt" class="belt" hidden><button data-act="tub">Mortar</button><button data-act="pallet">Brick</button><button data-act="halves">Half</button><button data-act="sound" class="small">Sound</button></div>
     <div class="corner"><button id="mute">Sound on</button><span id="lockHint" hidden>Click the view to look around · Esc frees the mouse</span></div>
   </div>
 
@@ -195,6 +207,6 @@ button{font:inherit;cursor:pointer}
   // show start-up failures on the start card instead of a silent "Loading…"
   addEventListener('error', e => { const l = document.getElementById('loading'); if (l) l.textContent = 'Could not start: ' + (e.message || 'a file failed to load'); }, true);
 </script>
-<script type="module" src="js/game.js?v=0.6.0"></script>
+<script type="module" src="js/game.js?v=0.7.0"></script>
 </body>
 </html>

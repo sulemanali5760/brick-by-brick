@@ -67,9 +67,15 @@ for (const v of VIEWS) {
 
   // A6 (touch views): spread and lay the first brick with real taps on the projected slot
   if (v.hasTouch) {
-    const tapSlot = async () => { const p = await page.evaluate(() => __bbb.qa.slotCenter()); await page.touchscreen.tap(p[0], p[1]); await page.waitForTimeout(150); };
+    // start clean: empty trowel and hand, then play only through the tool belt and taps on the wall
+    await page.evaluate(() => { __bbb.begin(0); document.getElementById('toast').hidden = true; });
+    await page.touchscreen.tap(12, 300); // a first touch switches the game into touch mode (belt + follow camera)
+    await page.waitForTimeout(2500); // the follow camera turns to the first brick
+    const tapSlot = async () => { const p = await page.evaluate(() => __bbb.qa.slotCenter()); await page.touchscreen.tap(p[0], p[1]); await page.waitForTimeout(200); };
+    await page.tap('#belt [data-act="tub"]');
     await tapSlot();
     const bedded = await page.evaluate(() => __bbb.game.state.bedUntil);
+    await page.tap('#belt [data-act="pallet"]');
     await tapSlot();
     const placed = await page.evaluate(() => !!__bbb.game.state.setting);
     check(v.name, 'A6 touch spread + lay', bedded > 0 && placed, `bedUntil=${bedded}, setting=${placed}`);
@@ -106,13 +112,20 @@ for (const v of VIEWS) {
         await new Promise(r => setTimeout(r, 2300)); // camera walks to the next wall
         const g = __bbb.game;
         log.push({ wall: g.state.cur === null ? null : g.slots[g.state.cur].section, yaw: +__bbb.view.yaw.toFixed(2), robotQueue: [...g.state.robot.queue] });
+        if (g.state.cur === null && !window.qaFF) { // A10: watching the robot, compare x1 and x4 over the same real time
+          const count = () => g.state.results.filter(r => r.by === 'robot').length;
+          const c0 = count(); await new Promise(r => setTimeout(r, 3000)); const c1 = count();
+          __bbb.toggleFast(); await new Promise(r => setTimeout(r, 3000)); const c2 = count(); __bbb.toggleFast();
+          window.qaFF = { normal: c1 - c0, fast: c2 - c1 };
+        }
       };
       const r = await window.qaPlay({ handOver: true, onHandOver: 'qaAfterHand' });
       const sum = __bbb.game.summary(performance.now() / 1000);
-      return { ...r, log, robot: sum.robot, mine: sum.mine };
+      return { ...r, log, robot: sum.robot, mine: sum.mine, ff: window.qaFF };
     });
     const moved = a8.log.length >= 2 && a8.log[0].wall === 1 && Math.abs(a8.log[0].yaw - 1.57) < 0.1;
     check(v.name, 'A8 hand over, walk on, robot finishes', a8.done && moved && a8.robot > 0, `done=${a8.done}, handovers=${JSON.stringify(a8.log)}, by you ${a8.mine}, by robot ${a8.robot}`);
+    check(v.name, 'A10 fast-forward ×4 while watching', !!a8.ff && a8.ff.fast >= 3 * Math.max(1, a8.ff.normal), `robot bricks in 3 s: ×1 ${a8.ff?.normal}, ×4 ${a8.ff?.fast}`);
     await page.waitForTimeout(4200);
     await page.screenshot({ path: `${OUT}/${v.name}-5-yard.png` });
   }

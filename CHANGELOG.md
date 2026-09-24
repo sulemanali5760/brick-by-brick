@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7 — Phone and flow ([plan](docs/builds/07-phone-flow.md))
+- **Tool belt on touch screens:** Mortar · Brick · Half · Sound buttons along the bottom. No more turning round to the tub and the pallet. The button you need next is highlighted.
+- **Follow camera on touch screens:** the view turns to keep the brick you're working on in sight (it waits 2 s after you drag).
+- **Fast-forward:** while the robot finishes walls you've handed over, **Speed ×4** (or F) runs the job clock four times faster.
+- **One game clock** drives mortar, robot and animations; a hidden tab simply pauses the game.
+
 ## 0.6 — Crew: hand over and move on ([plan](docs/builds/06-momentum.md))
 - **Bricklaying robot:** unlocked by finishing the garden wall. Lay a wall's first two courses yourself (the lead sets the line and the bond), then **hand it over (H or the button)**. The robot finishes the wall while you move on. It turns its boom to each brick and lowers it into place.
 - **New job 3, Yard walls:** three walls around a yard. Lead each one, hand it over, and the camera walks you to the next wall. The robot drives from wall to wall through its queue.
