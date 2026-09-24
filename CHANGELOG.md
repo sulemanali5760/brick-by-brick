@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5 — Feel pass ([plan](docs/builds/05-feel.md))
+- **New first-person hands** (Blender): tapered hi-vis sleeves, knit cuffs, a right fist gripping the trowel handle, a left hand gripping the brick from above. They now sit in view, and move inward on portrait phones.
+- **Closer framing:** the wall fills more of the screen.
+- **HUD off the work area:** the level gauge sits beside the crosshair, and foreman messages stack under the clipboard.
+- **Admire moment:** when a job is done the hands drop, the camera eases back to show the whole wall, and the result card slides in beside it.
+- **Economy:** Perfect €0.60 / Good €0.40 / Rough €0.20; streak ×1.25 at 4, ×1.5 at 8, ×2 at 12; tools €20/€15/€25/€45. One job now buys one or two tools, not the whole shop.
+- Stronger brick-to-brick tone variation, as in real walls.
+- **Pipeline:** downloaded assets are fetched, converted and validated only on GitHub (new `polyhaven` and `assets` workflows). Local Blender builds our models with procedural textures.
+- **QA:** every build now posts a balance report (fast bot vs human-pace player) to the Actions summary.
+
 ## 0.4 — Mortar sets under the brick too
 - **Balance fix:** the 0.3 bot still scored 100% Perfect, because patient light taps cost nothing. The mortar now keeps setting while you level a brick. If it goes off first, the brick **sets proud** where it is and pays Rough. That makes a real choice between fast knocks and careful taps.
 - The mortar bar stays visible while you're levelling.

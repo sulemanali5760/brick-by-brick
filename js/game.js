@@ -32,6 +32,7 @@ const camera = new THREE.PerspectiveCamera(70, 1, 0.02, 200);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 const view = { yaw: 0, pitch: -0.72 };
+let armSpread = 1; // arms move inward on narrow (portrait) screens so both hands stay in view
 function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   if (!w || !h) return; // a 0-size layout pass would make the projection NaN
@@ -39,6 +40,7 @@ function resize() {
   camera.aspect = w / h;
   camera.fov = camera.aspect < 1 ? 82 : 70;
   camera.updateProjectionMatrix();
+  armSpread = Math.max(0.55, Math.min(1, camera.aspect * 0.8));
 }
 new ResizeObserver(resize).observe(canvas);
 
@@ -257,11 +259,12 @@ function setupJob(i) {
 /* ---------- first-person rig ---------- */
 const armR = M.fp_arms.getObjectByName('ArmR') || new THREE.Group(), armL = M.fp_arms.getObjectByName('ArmL') || new THREE.Group();
 const rig = new THREE.Group(); camera.add(rig);
-const BASE = { R: { p: new THREE.Vector3(0.2, -0.31, 0.02), r: new THREE.Euler(0.33, 0.2, 0) }, L: { p: new THREE.Vector3(-0.2, -0.31, 0.02), r: new THREE.Euler(0.33, -0.2, 0) } };
+// elbows sit low and forward; forearms point up into the view so hands and tools read clearly
+const BASE = { R: { p: new THREE.Vector3(0.17, -0.34, -0.1), r: new THREE.Euler(0.46, 0.16, 0) }, L: { p: new THREE.Vector3(-0.17, -0.34, -0.1), r: new THREE.Euler(0.46, -0.16, 0) } };
 for (const a of [armR, armL]) { a.traverse(o => { o.castShadow = false; }); rig.add(a); }
 const trowel = M.trowel;
-trowel.rotation.set(0, Math.PI / 2, -0.25);
-trowel.position.set(0, -0.03, -0.3);
+trowel.rotation.set(0, Math.PI / 2, -0.2); // handle runs through the fist (grip axis at 0.29 m), blade forward
+trowel.position.set(0, 0, -0.29);
 trowel.traverse(o => { o.castShadow = false; });
 armR.add(trowel);
 const lump = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), mortarMat);
@@ -272,7 +275,7 @@ const handBricks = { full: [], half: [] };
 for (const kind of ['full', 'half']) for (let k = 0; k < 2; k++) {
   const b = (kind === 'full' ? M.brick_nf : M.brick_half).clone();
   b.rotation.y = Math.PI / 2;
-  b.position.set(-k * 0.12, -0.017 - BH, -0.3); // a second brick (tongs) sits beside the first
+  b.position.set(-k * 0.125, -0.012 - BH, -0.3); // hangs under the palm; a second brick (tongs) sits beside it
   b.traverse(o => { o.castShadow = false; });
   armL.add(b); handBricks[kind].push(b);
 }
@@ -281,6 +284,7 @@ const anims = [];
 const play = (arm, kind, dur) => anims.push({ arm, kind, t0: performance.now(), dur });
 function armPose(name, arm, now) {
   const p = BASE[name].p.clone(), r = BASE[name].r.clone();
+  p.x *= armSpread;
   for (const a of anims) {
     if (a.arm !== name) continue;
     const t = (now - a.t0) / a.dur;
@@ -443,8 +447,8 @@ function handle(r, now) {
     b.traverse(o => {
       if (!o.isMesh) return;
       o.material = o.material.clone();
-      const k = 0.88 + Math.random() * 0.2;
-      o.material.color.setRGB(k, k * (0.95 + Math.random() * 0.06), k * (0.93 + Math.random() * 0.06));
+      const k = 0.82 + Math.random() * 0.28; // real walls vary: some bricks fired darker, some paler
+      o.material.color.setRGB(k, k * (0.9 + Math.random() * 0.12), k * (0.88 + Math.random() * 0.12));
     });
     bricks.set(r.slot, b); wall.add(b);
     setBrickHeight(r.slot, r.a, r.b);
@@ -470,7 +474,7 @@ function handle(r, now) {
     setTimeout(() => (r.grade === 'perfect' ? sfx('ding', r.streak) : r.proud ? sfx('sunk') : sfx('ok')), 80);
     if (r.proud) { flyText(`Set proud: mortar went off +${euro(r.pay)}`, 'rough'); fact('proud'); }
     else { flyText(`${r.grade[0].toUpperCase() + r.grade.slice(1)} +${euro(r.pay)}${r.mult > 1 ? ` ×${r.mult}` : ''}`, r.grade); fact('firstSet'); }
-    if (r.streak === 3) fact('streak');
+    if (r.streak === 4) fact('streak');
     if (r.course) {
       setTimeout(() => sfx('course'), 350);
       const c = r.course.index, note = job.afterCourse[String(c)];
@@ -529,10 +533,25 @@ function finish() {
   $('moreSoon').hidden = !!next;
   $('moreSoon').textContent = `More jobs are on the way: ${content.comingNext.join(', ')}.`;
   renderShop();
-  setTimeout(() => { playing = false; if (document.pointerLockElement) document.exitPointerLock(); $('end').hidden = false; }, 1600);
+  // admire: hands down, camera eases back to show the whole job, then the card slides in beside it
+  playing = false; down = null;
+  if (document.pointerLockElement) document.exitPointerLock();
+  $('gauge').hidden = true; $('cross').hidden = true; $('label').textContent = '';
+  const [x, y, z, yaw, pitch] = job.admire;
+  admire = { t0: performance.now() + 700, from: { pos: camera.position.clone(), yaw: view.yaw, pitch: view.pitch }, to: { pos: new THREE.Vector3(x, y, z), yaw, pitch } };
+  setTimeout(() => { $('end').hidden = false; }, 3400);
+}
+let admire = null;
+function stepAdmire(now) {
+  const k = Math.max(0, Math.min(1, (now - admire.t0) / 2500)), e = k * k * (3 - 2 * k);
+  camera.position.lerpVectors(admire.from.pos, admire.to.pos, e);
+  view.yaw = admire.from.yaw + (admire.to.yaw - admire.from.yaw) * e;
+  view.pitch = admire.from.pitch + (admire.to.pitch - admire.from.pitch) * e;
+  rig.position.y = -0.4 * e; // lower the hands out of view
 }
 function begin(i) {
   audioInit();
+  admire = null; rig.position.y = 0;
   selected = i; setupJob(i);
   $('start').hidden = true; $('end').hidden = true;
   playing = true;
@@ -668,6 +687,7 @@ function frame() {
     if (game.nextAction(t) !== lastAction) updateHUD();
     updateMortar(t);
   }
+  if (admire) stepAdmire(now);
   shake *= 0.85;
   camera.rotation.set(view.pitch + (Math.random() - 0.5) * shake, view.yaw + (Math.random() - 0.5) * shake, 0);
   armPose('R', armR, now); armPose('L', armL, now);

@@ -1,6 +1,8 @@
-"""Download the CC0 Poly Haven assets the game uses into assets/source/polyhaven.
+"""CI only (polyhaven workflow): download the CC0 Poly Haven assets the game uses.
 
-Blender (blender/make_assets.py) turns the models into game-ready .glb files.
+Runs on a GitHub runner, never on the dev laptop (docs/LESSONS.md L21).
+
+blender/convert_polyhaven.py (also CI only) turns the models into game-ready .gltf files.
 Textures and the sky HDRI are used by the game as-is.
 """
 import json
@@ -15,7 +17,6 @@ HDRI = ROOT / "assets" / "hdri"
 TEXTURES = {  # id -> maps to pull (1k jpg)
     "brown_mud_dry": ["Diffuse", "nor_gl"],
     "concrete_floor_02": ["Diffuse", "nor_gl"],
-    "plywood": ["Diffuse"],
 }
 MODELS = ["cement_bag", "measuring_tape_01"]
 SKY = "kloofendal_48d_partly_cloudy_puresky"

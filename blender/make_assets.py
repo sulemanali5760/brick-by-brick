@@ -1,11 +1,13 @@
-"""Build every game asset for Brick by Brick, slice 1.
+"""Build Brick by Brick's own models: procedural geometry and procedural textures only.
 
-Run headless:
+Run headless (allowed on the dev laptop):
   "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe" --background --factory-startup --python blender/make_assets.py
 
-Writes assets/models/*.gltf (real-world scale, metres, origin at the bottom centre
-unless noted), then re-imports every export into one scene, renders
-docs/asset_lineup.png and saves blender/assets.blend for hand edits.
+Rule (docs/LESSONS.md L21): this script never opens a file downloaded from the web. Poly Haven
+assets are fetched, converted and validated in GitHub Actions (blender/convert_polyhaven.py).
+
+Writes assets/models/*.gltf (real-world scale, metres, origin at the bottom centre unless noted),
+re-imports our exports into one scene, renders docs/asset_lineup.png and saves blender/assets.blend.
 """
 import bpy, bmesh, json, math, pathlib, random
 import numpy as np
@@ -14,7 +16,6 @@ from mathutils import Matrix, Vector, noise
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "assets" / "models"
 SRC = ROOT / "assets" / "source"
-TEX = ROOT / "assets" / "textures"
 OUT.mkdir(parents=True, exist_ok=True)
 random.seed(7)
 rng = np.random.default_rng(7)
@@ -168,6 +169,40 @@ def brick_image():
     return im
 
 
+def image_from(name, arr):
+    """Save an HxWx3 sRGB float array as a PNG under assets/source and return the Blender image."""
+    h, w, _ = arr.shape
+    rgba = np.concatenate([np.clip(arr, 0, 1), np.ones((h, w, 1))], axis=2).astype(np.float32)
+    im = bpy.data.images.new(name, w, h)
+    im.pixels.foreach_set(rgba.ravel())
+    path = SRC / f"{name}.png"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    im.filepath_raw, im.file_format = str(path), "PNG"
+    im.save()
+    return im
+
+
+def mortar_image():
+    """Sandy grey mortar: fine grain plus a few darker and lighter sand specks."""
+    n = 256
+    base = np.array([0.66, 0.64, 0.60])[None, None] * (1 + 0.08 * rng.normal(0, 1, (n, n, 1)))
+    specks = rng.random((n, n))
+    base[specks > 0.97] *= 0.75
+    base[specks < 0.03] *= 1.12
+    return image_from("mortar_diffuse", base)
+
+
+def wood_image():
+    """Rough-sawn pallet pine: grain runs along x (the board length)."""
+    h, w = 128, 512
+    y = np.linspace(0, 1, h)[:, None]
+    x = np.linspace(0, 1, w)[None, :]
+    grain = np.sin((y * 38 + 0.6 * np.sin(x * 9 + y * 4)) * 6.283)
+    tone = 1 + 0.07 * grain + 0.05 * rng.normal(0, 1, (h, w))
+    arr = np.array([0.80, 0.66, 0.47])[None, None] * tone[..., None]
+    return image_from("pallet_wood", arr)
+
+
 # ---------- assets ----------
 def make_bricks():
     for name, length in (("brick_nf", 0.240), ("brick_half", 0.115)):
@@ -194,7 +229,7 @@ def make_trowel():
 def make_tub():
     reset()
     pe = mat("tub_black", "#1E1F21", rough=0.55)
-    mortar = mat("mortar", "#A39E94", rough=0.95, image=TEX / "concrete_floor_02_diffuse.jpg")
+    mortar = mat("mortar", "#A39E94", rough=0.95, image=mortar_image())
     bpy.ops.mesh.primitive_cone_add(vertices=40, radius1=0.17, radius2=0.215, depth=0.3, location=(0, 0, 0.15))
     shell = bpy.context.active_object
     bm = bmesh.new()
@@ -227,7 +262,7 @@ def make_tub():
 def make_pallet():
     """EPAL euro pallet, 1200 x 800 x 144 mm."""
     reset()
-    wood = mat("pallet_wood", "#C9A878", rough=0.85, image=TEX / "plywood_diffuse.jpg")
+    wood = mat("pallet_wood", "#C9A878", rough=0.85, image=wood_image())
     parts = []
     for y, w in ((-0.3275, 0.145), (-0.16375, 0.1), (0, 0.145), (0.16375, 0.1), (0.3275, 0.145)):
         parts.append(box("top", (1.2, w, 0.022), (0, y, 0.133), wood, 0.002, uv=0.5))
@@ -240,21 +275,59 @@ def make_pallet():
     export("pallet_euro", [join(parts, "pallet_euro", smooth=False)])
 
 
+def taper(name, p1, p2, r1, r2, m, verts=20):
+    """Truncated cone from p1 (radius r1) to p2 (radius r2)."""
+    p1, p2 = Vector(p1), Vector(p2)
+    d = p2 - p1
+    bpy.ops.mesh.primitive_cone_add(vertices=verts, radius1=r1, radius2=r2, depth=d.length, location=(p1 + p2) / 2)
+    o = bpy.context.active_object
+    o.name = name
+    o.rotation_mode = "QUATERNION"
+    o.rotation_quaternion = d.to_track_quat("Z", "Y")
+    o.data.materials.append(m)
+    return o
+
+
+def capsule(name, p1, p2, r, m):
+    """Finger segment: a cylinder with round ends."""
+    parts = [rod(name, p1, p2, r, m, 12)]
+    for q in (p1, p2):
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=r, location=q)
+        parts.append(bpy.context.active_object)
+        parts[-1].data.materials.append(m)
+    return parts
+
+
 def make_arms():
-    """First-person forearms. Elbow at origin, hand towards +Y (forward in game)."""
+    """First-person forearms v2. Elbow at origin, hand towards +Y (forward in game).
+    ArmR: a fist whose grip axis runs forward through (0, 0.29, 0), so the trowel handle sits in it.
+    ArmL: a hand over the top of a brick (brick hangs under the palm at z = -0.017), fingers down
+    the outer side, thumb down the inner side."""
     reset()
-    sleeve = mat("hivis_orange", "#EE6A1F", rough=0.7)
+    sleeve = mat("hivis_orange", "#EE6A1F", rough=0.75)
     refl = mat("reflective", "#DADFE2", rough=0.25, metal=0.3)
-    knit = mat("glove_knit", "#6E7479", rough=0.95)
-    coat = mat("glove_coating", "#E0A22B", rough=0.55)
+    knit = mat("glove_knit", "#5F666C", rough=0.95)
+    coat = mat("glove_coating", "#E3A52A", rough=0.5)
     out = []
     for side, name in ((1, "ArmR"), (-1, "ArmL")):
-        parts = [rod("sleeve", (0, -0.12, 0), (0, 0.2, 0), 0.056, sleeve, 24),
-                 rod("band", (0, 0.03, 0), (0, 0.065, 0), 0.0575, refl, 24),
-                 rod("cuff", (0, 0.19, 0), (0, 0.26, 0), 0.046, knit, 20),
-                 box("palm", (0.088, 0.1, 0.034), (0, 0.305, 0), coat, bevel=0.012),
-                 box("fingers", (0.084, 0.08, 0.03), (0, 0.38, -0.012), coat, bevel=0.012, rot=(math.radians(-22), 0, 0)),
-                 box("thumb", (0.026, 0.065, 0.026), (-side * 0.052, 0.3, 0.004), coat, bevel=0.01, rot=(0, 0, math.radians(side * 25)))]
+        parts = [taper("sleeve", (0, -0.16, 0), (0, 0.18, 0), 0.062, 0.052, sleeve, 28),
+                 taper("band", (0, 0.02, 0), (0, 0.055, 0), 0.0605, 0.0595, refl, 28),
+                 taper("cuff", (0, 0.17, 0), (0, 0.245, 0), 0.043, 0.039, knit, 24)]
+        if side == 1:  # right fist around a forward-pointing handle
+            parts.append(box("back", (0.074, 0.09, 0.036), (0.004, 0.29, 0.024), coat, bevel=0.014))
+            for k in range(4):
+                bpy.ops.mesh.primitive_torus_add(major_radius=0.026, minor_radius=0.0105, major_segments=18, minor_segments=8,
+                                                 location=(0, 0.258 + k * 0.021, 0), rotation=(math.radians(90), 0, 0))
+                t = bpy.context.active_object
+                t.data.materials.append(coat)
+                parts.append(t)
+            parts += capsule("thumb", (-0.03, 0.255, 0.022), (-0.012, 0.325, 0.03), 0.0115, coat)
+        else:  # left hand gripping a brick from above
+            parts.append(box("palm", (0.09, 0.1, 0.028), (0, 0.3, 0.002), coat, bevel=0.012))
+            for k in range(4):
+                y = 0.262 + k * 0.024
+                parts += capsule("finger", (-0.052, y, 0.004), (-0.066, y + 0.004, -0.058), 0.0098, coat)
+            parts += capsule("thumb", (0.05, 0.29, 0.0), (0.066, 0.31, -0.05), 0.011, coat)
         out.append(join(parts, name))
     export("fp_arms", out)
 
@@ -303,31 +376,12 @@ def make_fence():
     export("bauzaun", [join([*frame, wires, *feet], "bauzaun", smooth=False)])
 
 
-def convert_polyhaven(mid):
-    """Poly Haven glTF -> glb with origin at bottom centre, real scale kept."""
-    reset()
-    bpy.ops.import_scene.gltf(filepath=str(SRC / "polyhaven" / mid / f"{mid}.gltf"))
-    meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
-    for o in meshes:
-        activate(o)
-        bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-    pts = [v.co for o in meshes for v in o.data.vertices]
-    lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
-    hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
-    shift = Vector((-(lo.x + hi.x) / 2, -(lo.y + hi.y) / 2, -lo.z))
-    for o in meshes:
-        o.data.transform(Matrix.Translation(shift))
-    export(mid, meshes)
-
-
 # ---------- lineup: re-import every export and render a check image ----------
 def lineup():
     reset()
     report = {}
     x = 0.0
-    order = ["fp_arms", "trowel", "brick_nf", "brick_half", "line_pin", "spirit_level", "mortar_tub",
-             "pallet_euro", "cement_bag", "measuring_tape_01"]
+    order = ["fp_arms", "trowel", "brick_nf", "brick_half", "line_pin", "spirit_level", "mortar_tub", "pallet_euro"]
     for name in order:
         before = set(bpy.context.scene.objects)
         bpy.ops.import_scene.gltf(filepath=str(OUT / f"{name}.gltf"))
@@ -356,17 +410,16 @@ def lineup():
     sc = bpy.context.scene
     bpy.ops.mesh.primitive_plane_add(size=40, location=(x / 2, 0, 0))
     ground = bpy.context.active_object
-    ground.data.materials.append(mat("ground", "#8B7355", rough=1, image=TEX / "brown_mud_dry_diffuse.jpg"))
-    cube_uv(ground, 2.0)
+    ground.data.materials.append(mat("ground", "#8B7355", rough=1))
     world = bpy.data.worlds.new("sky")
     sc.world = world
     try:
         world.use_nodes = True
     except Exception:
         pass
-    env = world.node_tree.nodes.new("ShaderNodeTexEnvironment")
-    env.image = bpy.data.images.load(str(ROOT / "assets" / "hdri" / "kloofendal_48d_partly_cloudy_puresky_1k.hdr"))
-    world.node_tree.links.new(env.outputs["Color"], world.node_tree.nodes["Background"].inputs["Color"])
+    sky = world.node_tree.nodes.new("ShaderNodeTexSky")  # procedural sky: no downloaded HDRI on this machine
+    world.node_tree.links.new(sky.outputs["Color"], world.node_tree.nodes["Background"].inputs["Color"])
+    world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.4
     bpy.ops.object.light_add(type="SUN", rotation=(math.radians(50), 0, math.radians(30)))
     bpy.context.active_object.data.energy = 3
     cam_data = bpy.data.cameras.new("cam")
@@ -387,19 +440,6 @@ def lineup():
     print("ASSET REPORT", json.dumps(report))
 
 
-def make_sky():
-    """Tone-mapped JPG of the HDRI: the artifact host serves no .hdr files."""
-    reset()
-    hdr = ROOT / "assets" / "hdri" / "kloofendal_48d_partly_cloudy_puresky_1k.hdr"
-    img = bpy.data.images.load(str(hdr))
-    sc = bpy.context.scene
-    sc.view_settings.view_transform = "AgX"
-    sc.render.image_settings.file_format = "JPEG"
-    sc.render.image_settings.quality = 90
-    img.save_render(str(hdr.with_suffix(".jpg")), scene=sc)
-
-
-make_sky()
 make_bricks()
 make_trowel()
 make_tub()
@@ -408,6 +448,4 @@ make_arms()
 make_line_pin()
 make_level()
 make_fence()
-for mid in ("cement_bag", "measuring_tape_01"):
-    convert_polyhaven(mid)
 lineup()

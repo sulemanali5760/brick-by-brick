@@ -1,6 +1,6 @@
 // node js/rules.test.mjs — checks both wall layouts and plays every job with a fixed random seed.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, appendFileSync } from 'node:fs';
 import { buildSlots, createGame, newSave, buyUpgrade, finishJob } from './rules.js';
 
 const content = JSON.parse(readFileSync(new URL('../data/content.json', import.meta.url)));
@@ -32,36 +32,52 @@ for (const job of content.jobs) {
   }
 }
 
-// play each job start to finish with every upgrade combination that matters
+// play each job start to finish: invariants for every upgrade set, plus a balance report.
+// "bot" is fast with instant knocks and now and then idles 60 s (to exercise mortar going off);
+// "human" works at human pace, knocks cost their hold time, and aim and judgement are a bit off.
 let seed = 1;
 const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-for (const job of content.jobs) for (const up of [{}, { trowel: 1, tongs: 1, apprentice: 1 }, { retarder: 1 }]) {
-  const g = createGame(content, job, up, rand);
-  let now = 0;
-  for (let guard = 0; !g.state.done && guard < 20000; guard++) {
-    now += guard % 97 === 0 ? 60 : 1.5; // now and then dawdle long enough for the mortar to go off
-    g.tick(now);
-    const a = g.nextAction(now);
-    if (a === 'load') g.load(now);
-    else if (a === 'spread') g.spread(now);
-    else if (a === 'scrape') assert.ok(g.scrape(now).ok);
-    else if (a === 'grab-full') g.grab('full', now);
-    else if (a === 'grab-half' || a === 'swap') g.grab(g.slots[g.state.cur].kind, now);
-    else if (a === 'place') assert.ok(g.place(now).ok, 'place');
-    else if (a === 'hit') {
-      const { a: ea, b: eb } = g.state.setting;
-      g.hit(Math.max(ea, eb) > 3 ? 0.4 : 0, Math.abs(ea - eb) > 0.6 ? (ea > eb ? 0 : 1) : 0.5, now);
+const profiles = {
+  bot: { step: 1.5, idle: 60, aim: 0, judge: 0 },
+  human: { step: 2.4, idle: 0, aim: 0.3, judge: 0.8 },
+};
+const rows = [];
+for (const job of content.jobs) for (const [who, pr] of Object.entries(profiles))
+  for (const up of [{}, { trowel: 1, tongs: 1, apprentice: 1 }, { retarder: 1 }]) {
+    const g = createGame(content, job, up, rand);
+    let now = 0;
+    for (let guard = 0; !g.state.done && guard < 20000; guard++) {
+      now += pr.idle && guard % 97 === 0 ? pr.idle : pr.step;
+      g.tick(now);
+      const a = g.nextAction(now);
+      if (a === 'load') g.load(now);
+      else if (a === 'spread') g.spread(now);
+      else if (a === 'scrape') assert.ok(g.scrape(now).ok);
+      else if (a === 'grab-full') g.grab('full', now);
+      else if (a === 'grab-half' || a === 'swap') g.grab(g.slots[g.state.cur].kind, now);
+      else if (a === 'place') assert.ok(g.place(now).ok, 'place');
+      else if (a === 'hit') {
+        const { a: ea, b: eb } = g.state.setting;
+        const seen = x => x + (rand() - 0.5) * pr.judge;          // misreading the gauge
+        const hold = Math.max(seen(ea), seen(eb)) > 3 ? 0.4 : 0.05;
+        const aim = Math.abs(seen(ea) - seen(eb)) > 0.6 ? (ea > eb ? 0 : 1) : 0.5;
+        now += hold - (who === 'human' ? pr.step * 0.6 : 0);       // a tap is quicker than a walk to the pallet
+        g.hit(hold, aim + (rand() - 0.5) * pr.aim, now);
+      }
     }
+    const sum = g.summary(now);
+    assert.equal(g.state.done, true, `${job.id} finished`);
+    assert.equal(sum.bricks, g.slots.length);
+    assert.equal(sum.perfect + sum.good + sum.rough, sum.bricks);
+    assert.equal(g.state.stock.full + g.state.stock.half + g.state.handN, 0, `${job.id} no bricks left over`);
+    const tools = Object.keys(up).join(' + ') || 'none';
+    rows.push([job.id, who, tools, `${Math.round(sum.perfect / sum.bricks * 100)}%`, `${sum.rough}`, `€${sum.pay.toFixed(2)}`, `${Math.round(sum.seconds / 60)} min`]);
   }
-  const sum = g.summary(now);
-  assert.equal(g.state.done, true, `${job.id} finished`);
-  assert.equal(sum.bricks, g.slots.length);
-  assert.equal(sum.perfect + sum.good + sum.rough, sum.bricks);
-  assert.equal(g.state.stock.full + g.state.stock.half + g.state.handN, 0, `${job.id} no bricks left over`);
-  console.log(job.id, JSON.stringify(up), sum);
-}
+const table = ['| job | player | tools | perfect | rough | pay | time |', '|---|---|---|---|---|---|---|', ...rows.map(r => `| ${r.join(' | ')} |`)].join('\n');
+console.log(table);
+if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Balance report\n\nShop total: €${content.upgrades.reduce((t, u) => t + u.price, 0)}\n\n${table}\n`);
 
-// streak multiplier kicks in at 3 perfect in a row
+// streak multiplier kicks in at 4 perfect in a row
 {
   const g = createGame(content, content.jobs[0], {}, () => 0.5);
   const mults = [];
@@ -72,7 +88,7 @@ for (const job of content.jobs) for (const up of [{}, { trowel: 1, tongs: 1, app
     mults.push(g.hit(0, 0.5, 0).mult);
     g.state.trowel = false;
   }
-  assert.deepEqual(mults, [1, 1, 1.5, 1.5]);
+  assert.deepEqual(mults, [1, 1, 1, 1.25]);
 }
 
 // mortar goes off after its open time and has to be scraped
@@ -110,5 +126,5 @@ assert.equal(buyUpgrade(save, content, 'trowel').ok, false);
 finishJob(save, content, 0, { pay: 30, perfect: 26, total: 52 });
 assert.equal(save.unlocked, 2);
 assert.equal(buyUpgrade(save, content, 'trowel').ok, true);
-assert.equal(save.money, 15);
+assert.equal(save.money, 10);
 console.log('rules ok');
