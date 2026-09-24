@@ -24,13 +24,16 @@ Owned by the design team; reviewed after every build. Builds live in `docs/build
 
 | Milestone | Theme | Contents | Pillars |
 |---|---|---|---|
-| **0.7** | Phone and flow | Tool belt on touch screens; camera keeps the current brick in view; fast-forward while the robot works; one game clock (pause and speed become trivial) | 2, 4 |
-| **0.8** | Openings | Wall with a **door and window opening**: leave the gap, set a **precast lintel** (≥ 115 mm bearing each side, manufacturer tables, see REFERENCES), close the reveals. New Blender assets: lintel, door and window frames | 1, 2 |
-| **0.9** | Your plot | A persistent plot: finished jobs stay there and assemble into **your house** (plinth → walls with openings → gable) | 2, 5 |
-| **0.10** | Body and skills | From the 2D concept: stamina (protein refills it, rest restores it), short courses that unlock techniques (corners, openings, paving), and an engineering degree for running robot fleets | 3 |
-| **0.11** | Crew board | Several helpers: labourer (brings bricks and mortar), apprentice (lays walling at Good quality), robots (fast, Perfect, costly); assign them to walls; wages versus speed | 3 |
-| **0.12** | Beyond brick | Side jobs from the 2D concept: **chicken coop** (timber frame, welded mesh), **courtyard** (sub-base, 1:60 fall, herringbone pavers) | 1, 5 |
-| **1.0** | Big contract | **Stadium**: survey, piling, precast terraces, and a whole robot fleet managed from a laptop (the "computer" idea). Contracts board with deadlines and reputation | all |
+| **0.7** ✓ | Phone and flow | Tool belt on touch screens; camera keeps the current brick in view; fast-forward while the robot works; one game clock (pause and speed become trivial) | 2, 4 |
+| **0.8** ✓ | Openings | Wall with a **door and window opening**: leave the gap, set a **precast lintel** (≥ 115 mm bearing each side, manufacturer tables, see REFERENCES), close the reveals. New Blender assets: lintel, door and window frames | 1, 2 |
+| **0.9** | Feel and reasons | Fixes research risks 1 and 2 ([RESEARCH.md](RESEARCH.md)). **Your lead courses set the robot's accuracy** (Perfect leads → a precise robot, Rough leads → it drifts). **Juice the tap:** mortar squeeze-out, a short freeze on Perfect, a string-line twang, dust on hard knocks. A **jointing pass** finishes each wall. The **foreman Gü** gets a voice (clipboard lines, facts). A CI balance check that neither "always hand over" nor "never hand over" wins on both money and time. | 1, 3, 4 |
+| **0.10** | Your plot | A persistent plot: finished jobs assemble into **your house** (plinth → walls with openings → gable). **The house is where the money goes** (each part costs material money, Stardew-style board). **You choose its look** (brick, bond, joint colour). The grandmother's note ("Build something that stays"). | 2, 5 |
+| **0.11** | Body and skills | Courses **unlock new actions, not +10%**: racking back, bolster cuts, Flemish bond, arches. Protein becomes a **short speed boost**, not a stamina drain. The engineering degree unlocks robot fleets. | 1, 3 |
+| **0.12** | Crew and contracts | A crew board (labourer, apprentice, robots) plus **contracts with a fixed quote and an early-finish bonus**, so handing over becomes a real choice. Things to do while the robot works: plumb-check its courses, set out the next wall. | 3 |
+| **0.13** | Beyond brick | Chicken coop (timber frame, welded mesh) and courtyard (sub-base, 1:60 fall, herringbone pavers) | 1, 5 |
+| **1.0** | Big contract | **The stadium is SV Ziegelau's 1920s grandstand**, a fenced ruin on every job's skyline from job 1. Gü's father built it. Survey, piling, precast terraces, a robot fleet run from a laptop, and **the last brick laid by hand**. | all |
+
+**Standing rule from the research:** every new job adds **one real-technique twist** (cracked brick, rain, DF/2DF bricks, cuts) with optional stars and no fail state. Keep jobs to 5–10 min.
 
 ## Idea backlog (scored: impact 1–5 / effort 1–5)
 
