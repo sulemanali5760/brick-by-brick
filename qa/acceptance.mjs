@@ -14,6 +14,22 @@ const VIEWS = [
   { name: 'phone', viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
 ];
 const results = [];
+const perf = [];
+// screenshots are evidence, not checks: a failed shot is logged and the run goes on
+async function shot(page, name) {
+  try { await page.screenshot({ path: `${OUT}/${name}.png`, timeout: 45000 }); }
+  catch (e) { perf.push({ at: name, note: 'screenshot failed: ' + String(e.message).split('
+')[0] }); }
+}
+// how long one frame takes right now (ms); 30 s means the page is stuck
+async function frameTime(page, at) {
+  const ms = await Promise.race([
+    page.evaluate(() => new Promise(r => { const t0 = performance.now(); requestAnimationFrame(() => requestAnimationFrame(() => r((performance.now() - t0) / 2))); })),
+    new Promise(r => setTimeout(() => r(30000), 30000)),
+  ]);
+  const info = await Promise.race([page.evaluate(() => ({ calls: __bbb.renderer.info.render.calls, tris: __bbb.renderer.info.render.triangles, geos: __bbb.renderer.info.memory.geometries, meshes: __bbb.scene.children.length })), new Promise(r => setTimeout(() => r(null), 5000))]);
+  perf.push({ at, ms: Math.round(ms), ...info });
+}
 
 // In-page bot: plays the current job the way the CI balance bot does, hands walls to the robot when
 // it can, waits while the robot works, and (optionally) checks the gauge never covers the brick.
@@ -63,7 +79,7 @@ for (const v of VIEWS) {
   await page.waitForTimeout(800);
   await page.evaluate(() => { __bbb.act('tub'); __bbb.act('pallet'); });
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/${v.name}-1-hands.png` });
+  await shot(page, `${v.name}-1-hands`);
 
   // A6 (touch views): spread and lay the first brick with real taps on the projected slot
   if (v.hasTouch) {
@@ -83,18 +99,19 @@ for (const v of VIEWS) {
     await page.evaluate(() => { __bbb.act('slot'); __bbb.act('slot'); });
   }
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/${v.name}-2-levelling.png` });
+  await shot(page, `${v.name}-2-levelling`);
 
   // A2: play the whole wall; whenever a brick is being levelled, the gauge must not cover it
   await page.evaluate(installBot);
   const a2 = await page.evaluate(() => window.qaPlay({ checkGauge: true }));
   check(v.name, 'A2 gauge never covers the brick', a2.done && a2.over.length === 0, `done=${a2.done}, overlapping slots=${JSON.stringify(a2.over)}`);
+  await frameTime(page, `${v.name} after garden wall`);
 
   // A4: admire view, then the card must leave the wall's centre visible
   await page.waitForTimeout(2600);
-  await page.screenshot({ path: `${OUT}/${v.name}-3-admire.png` });
+  await shot(page, `${v.name}-3-admire`);
   await page.waitForTimeout(1800);
-  await page.screenshot({ path: `${OUT}/${v.name}-4-card.png` });
+  await shot(page, `${v.name}-4-card`);
   const a4 = await page.evaluate(() => {
     const c = document.querySelector('#end .card').getBoundingClientRect(), w = __bbb.qa.wallCenter();
     return { shown: !document.getElementById('end').hidden, covered: w[0] > c.left && w[0] < c.right && w[1] > c.top && w[1] < c.bottom, w: w.map(Math.round), card: [c.left, c.top, c.right, c.bottom].map(Math.round) };
@@ -125,9 +142,10 @@ for (const v of VIEWS) {
     });
     const moved = a8.log.length >= 2 && a8.log[0].wall === 1 && Math.abs(a8.log[0].yaw - 1.57) < 0.1;
     check(v.name, 'A8 hand over, walk on, robot finishes', a8.done && moved && a8.robot > 0, `done=${a8.done}, handovers=${JSON.stringify(a8.log)}, by you ${a8.mine}, by robot ${a8.robot}`);
+    await frameTime(page, `${v.name} after yard walls`);
     check(v.name, 'A10 fast-forward ×4 while watching', !!a8.ff && a8.ff.fast >= 3 * Math.max(1, a8.ff.normal), `robot bricks in 3 s: ×1 ${a8.ff?.normal}, ×4 ${a8.ff?.fast}`);
     await page.waitForTimeout(4200);
-    await page.screenshot({ path: `${OUT}/${v.name}-5-yard.png` });
+    await shot(page, `${v.name}-5-yard`);
   }
   check(v.name, 'no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
@@ -136,6 +154,9 @@ await browser.close();
 
 const table = ['| view | check | result | notes |', '|---|---|---|---|', ...results.map(r => `| ${r.view} | ${r.id} | ${r.ok ? '✅' : '❌'} | ${r.note.replace(/\|/g, '/')} |`)].join('\n');
 console.log(table);
-writeFileSync(`${OUT}/results.json`, JSON.stringify(results, null, 2));
+const ptable = ['| checkpoint | frame ms | draw calls | triangles | geometries | notes |', '|---|---|---|---|---|---|', ...perf.map(p => `| ${p.at} | ${p.ms ?? ''} | ${p.calls ?? ''} | ${p.tris ?? ''} | ${p.geos ?? ''} | ${p.note ?? ''} |`)].join('
+');
+console.log(ptable);
+writeFileSync(`${OUT}/results.json`, JSON.stringify({ results, perf }, null, 2));
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Acceptance run\n\n${table}\n\nScreenshots: the qa-screenshots artifact.\n`);
 process.exit(results.every(r => r.ok) ? 0 : 1);
