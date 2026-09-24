@@ -56,6 +56,18 @@ The end card shows bricks laid, % perfect, time, pay, and four facts learned.
 - Courses 2, 4, 6, 8: ½ + 5 full + ½ = 115 + 5 × 240 + 115 + 6 × 10 = **1490 mm**
 - 52 bricks total, 8 × 83.3 mm = **667 mm** high on the footing
 
+## Window wall (0.8)
+
+Unlocked by finishing the Yard walls (`finishJob` unlocks the next job in the list, so no special case). One wall, 8 bricks × 12 courses (1.99 × 1.0 m), with a window opening described in `sections[0].openings`:
+
+- **Gap:** bricks 3 and 4 of the even courses and their joints are left out on courses 2–7, so 0.74 → 1.25 m is clear (0.51 m).
+- **Reveals:** even courses end at the jamb with a full brick, odd courses with a half brick; the slot beside the jamb carries `reveal: 'start' | 'end'` and no head joint on the jamb side.
+- **Lintel:** course 8 holds one lintel slot where bricks 2–5 would be (0.99 m), bearing 0.24 m each side, well over the 115 mm minimum (REFERENCES.md). Courses 9–11 brick over it.
+- **Robot:** it never lays a lintel. It stops, hands the wall back and calls you (`lintelCall`); you walk over at once if you have no wall, otherwise when you finish or hand over your current one. You can't hand over while the lintel is your next slot. After it's set, hand over again as usual.
+- **Carrying:** a lintel is one per trip (tongs don't apply) and the apprentice doesn't fetch it. In the results it counts as one brick.
+
+Balance target: the human-pace bot with the robot finishes in ≤ 10 min (asserted in `rules.test.mjs`).
+
 ## Controls
 
 | | PC | Phone |
