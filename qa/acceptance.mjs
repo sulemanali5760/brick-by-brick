@@ -61,6 +61,7 @@ for (const v of VIEWS) {
           if (!(gr.right < br.x0 || gr.left > br.x1 || gr.bottom < br.y0 || gr.top > br.y1)) over.push(st.cur);
         }
         const s = st.setting;
+        if (!s) continue; // the mortar went off while we waited for a frame: the brick set itself
         __bbb.act('brick', Math.max(s.a, s.b) > 3 ? 0.4 : 0, Math.abs(s.a - s.b) > 0.6 ? (s.a > s.b ? 0 : 1) : 0.5);
       } else if (a === 'load') __bbb.act('tub');
       else if (a === 'spread' || a === 'scrape' || a === 'place') __bbb.act('slot');
