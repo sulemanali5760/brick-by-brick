@@ -58,3 +58,15 @@ A first draft (a streak-charged "boost" that auto-lays 3 bricks) was dropped in 
 | A8 | Yard walls, desktop run: after 2 courses on wall 1, hand-over moves the camera to wall 2; the robot completes wall 1 by itself; the job finishes. |
 | A9 | Balance (human-pace bot): the corner with a hand-over is at least 30% faster than 0.5.4, and yard walls finish in under 12 minutes. |
 | A2/A4 | No regressions on all three sizes. |
+
+## 5. QA results (0.6.0, CI)
+
+| # | Result | Notes |
+|---|---|---|
+| A7 | ✅ | rules (sections, lead gate, robot finishing, stock conservation) and assets (robot passes the validator) are green. |
+| A8 | ✅ | Yard walls on desktop: hand-over after the lead moved you to wall 2 (yaw 1.57), then wall 3; the robot laid 78, you laid 39; the job finished. |
+| A9 | ✅ | Human-pace: corner 9.0 → 3.9 min with the robot (−57%); yard walls 8.7 min (by hand: 23.8 min, and double the pay). |
+| A2/A4 | ✅ | No regressions on desktop, small and phone. |
+| A6 | ❌ known | Phone touch start is still deferred (the first slot is off-screen in portrait). This is the headline of the next build. |
+
+**Build 0.6 closed.**
