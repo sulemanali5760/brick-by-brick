@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8: Openings ([plan](docs/builds/08-openings.md), first studio build)
+- **New job, the Window wall** (unlocked after the Yard walls). An 8-brick wall with a 0.51 m window opening:
+  - build the piers on either side, closing the reveals with **half bricks on every other course** to keep the bond;
+  - set a **precast clay lintel** (0.99 m, 24 cm bearing each side), then brick over it;
+  - a window frame goes in at the end.
+- **The robot calls you back for the lintel:** it lays the bricks but never a lintel, so it stops and hands the wall back to you.
+- New models: lintel, lintel stack, window frame.
+- New facts: reveals, lintel bearing (at least 115 mm), brickwork over a lintel.
+- Performance: beds and head joints share one geometry, and a cleared job frees its geometries and materials (the geometry count no longer grows from job to job).
+- QA is green again: the bot uses the game clock (L24), fast-forward is measured per frame (L25), and the new check A11 plays the Window wall.
+
 ## 0.7 — Phone and flow ([plan](docs/builds/07-phone-flow.md))
 - **Tool belt on touch screens:** Mortar · Brick · Half · Sound buttons along the bottom. No more turning round to the tub and the pallet. The button you need next is highlighted.
 - **Follow camera on touch screens:** the view turns to keep the brick you're working on in sight (it waits 2 s after you drag).

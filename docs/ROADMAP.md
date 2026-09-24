@@ -25,7 +25,7 @@ Owned by the design team; reviewed after every build. Builds live in `docs/build
 | Milestone | Theme | Contents | Pillars |
 |---|---|---|---|
 | **0.7** | Phone and flow | Tool belt on touch screens; camera keeps the current brick in view; fast-forward while the robot works; one game clock (pause and speed become trivial) | 2, 4 |
-| **0.8** | Openings | Wall with a **door and window opening**: leave the gap, set a **precast lintel** (≥ 150 mm bearing each side), close the reveals. New Blender assets: lintel, door and window frames | 1, 2 |
+| **0.8** | Openings | Wall with a **door and window opening**: leave the gap, set a **precast lintel** (≥ 115 mm bearing each side, manufacturer tables, see REFERENCES), close the reveals. New Blender assets: lintel, door and window frames | 1, 2 |
 | **0.9** | Your plot | A persistent plot: finished jobs stay there and assemble into **your house** (plinth → walls with openings → gable) | 2, 5 |
 | **0.10** | Body and skills | From the 2D concept: stamina (protein refills it, rest restores it), short courses that unlock techniques (corners, openings, paving), and an engineering degree for running robot fleets | 3 |
 | **0.11** | Crew board | Several helpers: labourer (brings bricks and mortar), apprentice (lays walling at Good quality), robots (fast, Perfect, costly); assign them to walls; wages versus speed | 3 |

@@ -208,6 +208,6 @@ body:has(.belt:not([hidden])) .corner{display:none}
   // show start-up failures on the start card instead of a silent "Loading…"
   addEventListener('error', e => { const l = document.getElementById('loading'); if (l) l.textContent = 'Could not start: ' + (e.message || 'a file failed to load'); }, true);
 </script>
-<script type="module" src="js/game.js?v=0.7.0"></script>
+<script type="module" src="js/game.js?v=0.8.0"></script>
 </body>
 </html>

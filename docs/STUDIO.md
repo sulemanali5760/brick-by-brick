@@ -36,6 +36,16 @@ Vision, pillars and milestones live in [ROADMAP.md](ROADMAP.md) and are not repe
 4. **Integration:** the director merges the lanes into `main` in contract order. `main` must be green on `rules`, `assets` and `qa` before release. The director then plays the build on Pages and checks it against the pillars.
 5. **Close:** the QA table goes into the build plan, lessons into LESSONS.md, and CHANGELOG and ROADMAP are updated.
 
+## Setting up lanes (director)
+
+The Agent tool's automatic worktree option fails on this repo, so make the worktrees by hand, one per lane:
+
+```bash
+git worktree add ../bbb-lanes/<lane> -b feat/<version>-<lane>
+```
+
+Start each lane agent with its worktree path, and clean up after the merge with `git worktree remove ../bbb-lanes/<lane>`.
+
 ## Limits
 
 - **At most three lanes per build.** More lanes cost more in coordination than they save.

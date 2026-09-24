@@ -1,6 +1,6 @@
 # Build 0.8: "Openings"
 
-Status: in progress (studio build, see [STUDIO.md](../STUDIO.md)) · base: 0.7.0 · roadmap row 0.8
+Status: closed · 0.8.0 live (studio build, see [STUDIO.md](../STUDIO.md)) · base: 0.7.0 · roadmap row 0.8
 
 ## 1. Goal
 
@@ -50,9 +50,9 @@ The design lane verifies the minimum-bearing figure: the roadmap says 150 mm and
 **Game act names:** `'lintels'` (the stack hitbox, and a belt button labelled **Lintel** that shows only when the job has lintels).
 
 **Assets** (glTF, embedded, as in ASSETS.md):
-- `assets/lintel.gltf`: 0.99 × 0.115 × 0.071 m. The long axis is +x, with the origin at the bottom centre, the same convention as the brick.
-- `assets/lintel_stack.gltf`: 3 lintels on two timber bearers.
-- `assets/window_frame.gltf`: timber frame with glass, outer size 0.50 × 0.49 m, depth 0.07 m, origin at the bottom centre, facing +z.
+- `assets/models/lintel.gltf`: 0.99 × 0.115 × 0.071 m. The long axis is +x, with the origin at the bottom centre, the same convention as the brick.
+- `assets/models/lintel_stack.gltf`: 3 lintels on two timber bearers.
+- `assets/models/window_frame.gltf`: timber frame with glass, outer size 0.50 × 0.49 m, depth 0.07 m, origin at the bottom centre, facing +z.
 
 ## 3. Lanes
 
@@ -104,4 +104,30 @@ Odd courses start with a half: 0.115 + joint, then full bricks at 0.125 + k × 0
 
 ## 6. Meeting minutes
 
-_(director fills this in when all lanes have reported)_
+**Meeting 1 (2026-09-24, all three lanes reported, first push green in every lane)**
+
+| Lane | Result | Cost |
+|---|---|---|
+| R rules | Contract done. Other jobs' slots are identical to 0.7 (verbatim-copy test). Window wall with robot, human-pace bot: **5.7 min** (3.9 min with all tools); by hand 18.4 min. | ~163k tokens, 1 CI cycle |
+| A art | lintel 40 tris / 145 KB, stack 144 / 290 KB, window frame 492 / 48 KB; glTF validator shows 0 errors and 0 warnings. | ~122k tokens, 1 CI cycle |
+| G game + QA | Whole QA table green including **A11**: the player lays the lintel, the gap stays empty, `lintelCall` fires, the frame is in. The geometry leak is fixed: 138 → 332 became 44 → 57 → 60. | ~203k tokens, 1 CI cycle |
+
+**Decisions**
+- **Lintel minimum bearing = 115 mm** (Wienerberger and Schlagmann tables, cited in REFERENCES). The roadmap's 150 mm was UK practice, so ROADMAP is corrected.
+- **Contract additions**, taken as they were built:
+  - `lintelCall` also carries `moveTo` (when the player is free) and `robotDrive` (when other walls are queued).
+  - `canHandOver()` is false while a lintel is the next slot.
+  - The apprentice never fetches lintels.
+  - `stock.lintel` always exists.
+  - The far-jamb reveal slot has `joint: false`.
+- **Model paths** are `assets/models/…` (the contract text is fixed).
+- **CI frame times are software-GL noise**, not game cost. The game's JS is 2–6 ms per frame. QA now reports the median of 10 frames plus the JS time.
+- **The QA run is about 42 min** since A11, so the job timeout is raised to 70 min.
+
+**Carried to the backlog:** A11 on the phone and small views; a triangle budget in ASSETS.md (none exists yet); window-job camera and prop positions still need tuning in play.
+
+**Process notes (for STUDIO.md next build)**
+- The Agent tool's automatic worktree failed on this repo ("Failed to resolve HEAD"), so the director makes lane worktrees with `git worktree add ../bbb-lanes/<lane> -b feat/<v>-<lane>`.
+- Lane A ran one local `python` read of a glTF file, which breaks the rule; it's flagged in its note. Rule restated: Blender only.
+- Every lane was green on its first push, and there were no merge conflicts thanks to strict file ownership.
+- Total ~488k tokens for a feature with rules, art, game and QA.
