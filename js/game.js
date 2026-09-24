@@ -34,6 +34,7 @@ scene.add(camera);
 const view = { yaw: 0, pitch: -0.72 };
 function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return; // a 0-size layout pass would make the projection NaN
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.fov = camera.aspect < 1 ? 82 : 70;
@@ -707,7 +708,7 @@ $('startBtn').disabled = false;
 requestAnimationFrame(frame);
 // console hook for play-testing: __bbb.act('tub'), __bbb.game.state …
 window.__bbb = {
-  act, get game() { return game; }, setupJob, begin, get save() { return save; },
+  act, get game() { return game; }, setupJob, begin, get save() { return save; }, camera, scene, view, renderer,
   look: (yaw, pitch) => { view.yaw = yaw; view.pitch = pitch; },
   // freeze the current 3D frame into an <img>: screenshot tools can miss a live WebGL canvas
   shot() {
