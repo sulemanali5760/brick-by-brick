@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { createGame, multiplier, newSave, buyUpgrade, finishJob } from './rules.js';
+// The release version lives once, in index.html's <script src="js/game.js?v=…">. Every other file is
+// fetched with the same ?v= so a new release never mixes with files a browser cached from the last one.
+const V = new URL(import.meta.url).searchParams.get('v') || 'dev';
+const { createGame, multiplier, newSave, buyUpgrade, finishJob } = await import(`./rules.js?v=${V}`);
 
 const $ = id => document.getElementById(id);
-const content = await fetch('data/content.json').then(r => r.json());
+const content = await fetch(`data/content.json?v=${V}`).then(r => r.json());
+$('ver').textContent = `Version ${V}`;
 const W = content.wall;
 const [, BD, BH] = W.brick;
 const FOOT_TOP = 0.25, REACH = 2.8;
@@ -60,7 +64,7 @@ async function loadGltf(url) {
 const M = Object.fromEntries(await Promise.all(MODELS.map(async n => {
   let root;
   try {
-    root = (await loadGltf(`assets/models/${n}.gltf`)).scene;
+    root = (await loadGltf(`assets/models/${n}.gltf?v=${V}`)).scene;
   } catch (e) {
     console.warn('Model failed, using a placeholder:', n, e);
     root = new THREE.Group();

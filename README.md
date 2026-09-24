@@ -17,4 +17,4 @@ Lay walls on a string line, beat the setting mortar, chain perfect bricks for bo
 | `docs/` | [GDD](docs/GDD.md) · [assets](docs/ASSETS.md) · [references](docs/REFERENCES.md) |
 | `prototype-2d.html` | The earlier 2D concept with the long-term design (shop, house, coop, stadium) |
 
-The game needs to be served over HTTP (ES modules and `fetch`); opening `index.html` from disk won't work. GitHub Pages serves `main` as-is; the `rules` workflow runs the rules self-check on every push.
+The game needs to be served over HTTP (ES modules and `fetch`); opening `index.html` from disk won't work. GitHub Pages serves `main` as-is. **Release:** bump the `?v=` on `js/game.js` in `index.html`; every other file inherits it, so browsers never mix cached files from two releases. the `rules` workflow runs the rules self-check on every push.
