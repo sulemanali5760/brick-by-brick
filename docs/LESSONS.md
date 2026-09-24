@@ -20,6 +20,7 @@ Read before every build. Add an entry whenever something goes wrong. Each entry 
 | L7 | `elementFromPoint` said the HUD wasn't there | the HUD has `pointer-events:none`, which `elementFromPoint` skips | Use bounding rects. |
 | L8 | A CI assertion ("the mortar went off at least once") failed at random | it depended on a timing accident in a random simulation | Test each mechanic with its own deterministic case; simulations only check invariants. |
 | L9 | A bash heredoc holding Python with backticks and quotes broke | shell quoting | Write patch scripts to a file in the scratchpad, then run them. |
+| L9b | **Relapse (0.7 QA):** inline heredoc Python wrote `'\\n'` into JS as a real line break, a syntax error that cost a CI cycle | L9 ignored "for a small change" | No inline heredoc edits of JS at all: use the Edit tool or a patch file, even for one line. |
 | L10 | Local `node` runs aren't allowed on his PC | his security rule | Rules tests run in GitHub Actions (`rules` workflow). Blender scripts are allowed. |
 | L11 | Waiting for CI with `sleep` was blocked | harness rule | Use `until …; do sleep 5; done` loops on real conditions. |
 | L19 | The 3D view went flat grey after the test viewport was resized | one layout pass reported a 0-px height, so the aspect became 0/0 = NaN and the projection stayed NaN | `resize()` ignores 0-size passes (0.4.2). Guard any divide by a layout size. |

@@ -18,8 +18,7 @@ const perf = [];
 // screenshots are evidence, not checks: a failed shot is logged and the run goes on
 async function shot(page, name) {
   try { await page.screenshot({ path: `${OUT}/${name}.png`, timeout: 45000 }); }
-  catch (e) { perf.push({ at: name, note: 'screenshot failed: ' + String(e.message).split('
-')[0] }); }
+  catch (e) { perf.push({ at: name, note: 'screenshot failed: ' + String(e.message).split(/\r?\n/)[0] }); }
 }
 // how long one frame takes right now (ms); 30 s means the page is stuck
 async function frameTime(page, at) {
@@ -154,9 +153,8 @@ await browser.close();
 
 const table = ['| view | check | result | notes |', '|---|---|---|---|', ...results.map(r => `| ${r.view} | ${r.id} | ${r.ok ? '✅' : '❌'} | ${r.note.replace(/\|/g, '/')} |`)].join('\n');
 console.log(table);
-const ptable = ['| checkpoint | frame ms | draw calls | triangles | geometries | notes |', '|---|---|---|---|---|---|', ...perf.map(p => `| ${p.at} | ${p.ms ?? ''} | ${p.calls ?? ''} | ${p.tris ?? ''} | ${p.geos ?? ''} | ${p.note ?? ''} |`)].join('
-');
+const ptable = ['| checkpoint | frame ms | draw calls | triangles | geometries | notes |', '|---|---|---|---|---|---|', ...perf.map(p => `| ${p.at} | ${p.ms ?? ''} | ${p.calls ?? ''} | ${p.tris ?? ''} | ${p.geos ?? ''} | ${p.note ?? ''} |`)].join('\n');
 console.log(ptable);
 writeFileSync(`${OUT}/results.json`, JSON.stringify({ results, perf }, null, 2));
-if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Acceptance run\n\n${table}\n\nScreenshots: the qa-screenshots artifact.\n`);
+if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Acceptance run\n\n${table}\n\n## Performance (software GL, ?q=low)\n\n${ptable}\n\nScreenshots: the qa-screenshots artifact.\n`);
 process.exit(results.every(r => r.ok) ? 0 : 1);
