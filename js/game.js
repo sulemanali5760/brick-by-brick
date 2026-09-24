@@ -766,6 +766,15 @@ requestAnimationFrame(frame);
 window.__bbb = {
   act, get game() { return game; }, setupJob, begin, get save() { return save; }, camera, scene, view, renderer,
   look: (yaw, pitch) => { view.yaw = yaw; view.pitch = pitch; },
+  // measurements for the automated acceptance run (qa/acceptance.mjs), in CSS px
+  qa: {
+    brickRect: () => brickRect(game.slots[game.state.cur]),
+    slotCenter() { const r = brickRect(game.slots[game.state.cur]); return [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2]; },
+    wallCenter() {
+      const c = game.slots.reduce((a, s) => a.add(new THREE.Vector3(s.x, slotY(s) + BH / 2, s.z)), new THREE.Vector3()).divideScalar(game.slots.length).project(camera);
+      return [(c.x + 1) / 2 * canvas.clientWidth, (1 - c.y) / 2 * canvas.clientHeight];
+    },
+  },
   // freeze the current 3D frame into an <img>: screenshot tools can miss a live WebGL canvas
   shot() {
     renderer.render(scene, camera);

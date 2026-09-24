@@ -1,2 +1,4 @@
 *.blend1
 .DS_Store
+qa/out/
+node_modules/
