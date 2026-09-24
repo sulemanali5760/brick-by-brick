@@ -538,8 +538,11 @@ function finish() {
   // admire: hands down, camera eases back to show the whole job, then the card slides in beside it
   playing = false; down = null;
   if (document.pointerLockElement) document.exitPointerLock();
-  $('gauge').hidden = true; $('cross').hidden = true; $('label').textContent = '';
-  const [x, y, z, yaw, pitch] = job.admire;
+  $('hud').hidden = true; // cinematic: nothing but the wall
+  const [x, y, z, yaw, pitch0] = job.admire;
+  // when the card is a bottom sheet (< 1000 px wide), tilt down so the wall sits in the top 30% of the screen
+  const sheet = canvas.clientWidth < 1000;
+  const pitch = pitch0 - (sheet ? Math.atan(0.4 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) : 0);
   admire = { t0: performance.now() + 700, from: { pos: camera.position.clone(), yaw: view.yaw, pitch: view.pitch }, to: { pos: new THREE.Vector3(x, y, z), yaw, pitch } };
   setTimeout(() => { $('end').hidden = false; }, 3400);
 }
@@ -553,7 +556,7 @@ function stepAdmire(now) {
 }
 function begin(i) {
   audioInit();
-  admire = null; rig.position.y = 0;
+  admire = null; rig.position.y = 0; $('hud').hidden = false;
   selected = i; setupJob(i);
   $('start').hidden = true; $('end').hidden = true;
   playing = true;

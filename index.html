@@ -75,7 +75,7 @@ button{font:inherit;cursor:pointer}
 .overlay{position:absolute;inset:0;display:grid;place-items:center;padding:16px;background:rgba(18,21,24,.55);overflow:auto}
 /* the end card leaves the finished wall visible: a bottom sheet, or a side panel on wide screens */
 .overlay.beside{place-items:end center;background:linear-gradient(to top,rgba(18,21,24,.6),transparent 60%)}
-.overlay.beside .card{max-height:60%;overflow:auto}
+.overlay.beside .card{max-height:55%;overflow:auto}
 @media (min-width:1000px){.overlay.beside{place-items:center end;background:linear-gradient(to left,rgba(18,21,24,.55),transparent 55%)}
   .overlay.beside .card{width:440px;max-height:calc(100% - 8px)}}
 .card{width:min(540px,100%);padding:24px 24px 22px;background:var(--glass)}
@@ -185,6 +185,6 @@ button{font:inherit;cursor:pointer}
   // show start-up failures on the start card instead of a silent "Loading…"
   addEventListener('error', e => { const l = document.getElementById('loading'); if (l) l.textContent = 'Could not start: ' + (e.message || 'a file failed to load'); }, true);
 </script>
-<script type="module" src="js/game.js?v=0.5.3"></script>
+<script type="module" src="js/game.js?v=0.5.4"></script>
 </body>
 </html>
