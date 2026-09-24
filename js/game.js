@@ -51,7 +51,9 @@ function resize() {
 new ResizeObserver(resize).observe(canvas);
 
 /* ---------- loading ---------- */
-const MODELS = ['brick_nf', 'brick_half', 'trowel', 'fp_arms', 'mortar_tub', 'pallet_euro', 'line_pin', 'spirit_level', 'bauzaun', 'cement_bag', 'measuring_tape_01', 'robot'];
+const MODELS = ['brick_nf', 'brick_half', 'trowel', 'fp_arms', 'mortar_tub', 'pallet_euro', 'line_pin', 'spirit_level', 'bauzaun', 'cement_bag', 'measuring_tape_01', 'robot', 'lintel', 'lintel_stack', 'window_frame'];
+// stand-in box (size in m, colour; origin at the bottom centre) when a model is missing
+const PLACEHOLDER = { lintel: [0.99, 0.071, 0.115, 0xb5653f], lintel_stack: [0.99, 0.131, 0.42, 0xb5653f], window_frame: [0.5, 0.49, 0.07, 0x8a5a33] };
 let loaded = 0;
 const progress = () => { $('loading').textContent = `Loading site… ${loaded} / ${MODELS.length + 1}`; };
 progress();
@@ -76,8 +78,9 @@ const M = Object.fromEntries(await Promise.all(MODELS.map(async n => {
     root = (await loadGltf(`assets/models/${n}.gltf?v=${V}`)).scene;
   } catch (e) {
     console.warn('Model failed, using a placeholder:', n, e);
+    const [sx, sy, sz, color] = PLACEHOLDER[n] ?? [0.2, 0.2, 0.2, 0xff00ff];
     root = new THREE.Group();
-    root.add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshStandardMaterial({ color: 0xff00ff })));
+    root.add(new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz).translate(0, sy / 2, 0), new THREE.MeshStandardMaterial({ color })));
   }
   root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   loaded++; progress();
@@ -160,18 +163,35 @@ for (let layer = 0; layer < 2; layer++)
   for (let k = 0; k < 4; k++) halfSpots.push(new THREE.Matrix4().setPosition((k % 2) * 0.125, layer * (BH + 0.002), Math.floor(k / 2) * 0.125));
 const halfStack = stack(meshOf(M.brick_half), halfSpots, halves);
 const tub = place(M.mortar_tub, 0, 0, 0);
+const lintelStack = place(M.lintel_stack, 0, 0, 0); // only on jobs with an opening (job.lintels)
+const windowFrame = place(M.window_frame, 0, 0, 0); // goes into the opening when the job is finished
 const slotHit = hitbox('slot', [1, 1, 1], [0, 0, 0]);
 const brickHit = hitbox('brick', [1, 1, 1], [0, 0, 0]);
+const lintelHit = hitbox('lintels', [1.1, 0.25, 0.5], [0, 0.12, 0], lintelStack);
 const hits = [
   hitbox('tub', [0.55, 0.4, 0.55], [0, 0.2, 0], tub),
   hitbox('pallet', [1.25, 0.35, 0.85], [0, 0.18, 0], pallet),
   hitbox('halves', [0.32, 0.2, 0.32], [0.06, 0.08, 0.06], halves),
-  slotHit, brickHit,
+  lintelHit, slotHit, brickHit,
 ];
 const footing = new THREE.Group(); scene.add(footing);
 const wall = new THREE.Group(); scene.add(wall);
 const lines = new THREE.Group(); scene.add(lines);
 const beds = new Map(), bricks = new Map();
+// one unit box for every bed and head joint, scaled per slot: a geometry per mesh was never
+// disposed when a job was cleared, so geometries piled up from job to job (0.8 perf check)
+const unitBox = new THREE.BoxGeometry(1, 1, 1);
+const disposeMats = obj => obj.traverse(o => { if (o.isMesh) o.material.dispose(); });
+function clearWall() {
+  for (const b of bricks.values()) disposeMats(b); // bricks and beds own a cloned material each
+  for (const b of beds.values()) b.mesh.material.dispose();
+  wall.clear(); beds.clear(); bricks.clear();
+}
+// a window opening in wall units: along the section from its origin (a0 … a1) and in height (y0 … y1)
+function gapOf(op) {
+  const step = W.brick[0] + W.headJoint, course = BH + W.bedJoint;
+  return { a0: op.from * step - W.headJoint, a1: (op.from + op.bricks) * step, y0: FOOT_TOP + op.sill * course, y1: FOOT_TOP + op.head * course };
+}
 
 const ghost = new THREE.Group();
 const ghostFill = new THREE.MeshBasicMaterial({ color: 0xf5b400, transparent: true, opacity: 0.25, depthWrite: false });
@@ -189,7 +209,7 @@ function bedFor(i, extraMM, freshAt) {
   const sl = game.slots[i];
   let b = beds.get(i);
   if (!b) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: WET.clone(), map: mortarMap, roughness: 1 }));
+    const mesh = new THREE.Mesh(unitBox, new THREE.MeshStandardMaterial({ color: WET.clone(), map: mortarMap, roughness: 1 }));
     mesh.receiveShadow = mesh.castShadow = true;
     b = { mesh, at: nowS() };
     beds.set(i, b); wall.add(mesh);
@@ -210,7 +230,8 @@ function setBrickHeight(i, a, b) {
 function headJoint(i) {
   const sl = game.slots[i];
   if (!sl.joint) return;
-  const m = new THREE.Mesh(new THREE.BoxGeometry(...dims(sl, W.headJoint, BH, BD - 0.012)), mortarMat);
+  const m = new THREE.Mesh(unitBox, mortarMat);
+  m.scale.set(...dims(sl, W.headJoint, BH, BD - 0.012));
   const back = sl.len / 2 + W.headJoint / 2;
   m.position.set(sl.x - (sl.rot ? 0 : back), slotY(sl) + BH / 2, sl.z - (sl.rot ? back : 0));
   wall.add(m);
@@ -225,13 +246,16 @@ const lineTargetFor = (section, course) => {
   return sl ? slotY(sl) + BH : null;
 };
 function raiseLine(section, finished) { const y = lineTargetFor(section, finished + 1); if (y !== null) lineSets[section].target = y; }
+// length of a straight section: its bricks and the head joints between them
+const wallLen = sec => sec.bricks * (W.brick[0] + W.headJoint) - W.headJoint;
 function buildLines() {
+  lines.traverse(o => { if (o.geometry?.type === 'CylinderGeometry') o.geometry.dispose(); }); // the pins share the model's geometry
   lines.clear(); lineSets = [];
   const f = BD / 2 + 0.004;
   job.sections.forEach((sec, k) => {
-    const [ox, oz] = sec.o, fc = (sec.face ?? 1) * f, grp = new THREE.Group();
+    const [ox, oz] = sec.o, fc = (sec.face ?? 1) * f, grp = new THREE.Group(), end = wallLen(sec) + 0.04;
     const segs = sec.layout === 'corner' ? [[ox, oz + f, ox + 1.03, oz + f], [ox + BD + 0.004, oz + f, ox + BD + 0.004, oz + 1.03]]
-      : sec.rot ? [[ox + fc, oz - 0.04, ox + fc, oz + 1.53]] : [[ox - 0.04, oz + fc, ox + 1.53, oz + fc]];
+      : sec.rot ? [[ox + fc, oz - 0.04, ox + fc, oz + end]] : [[ox - 0.04, oz + fc, ox + end, oz + fc]];
     for (const [x1, z1, x2, z2] of segs) {
       const len = Math.hypot(x2 - x1, z2 - z1);
       const str = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0012, len, 6), stringMat);
@@ -247,13 +271,14 @@ function buildLines() {
 }
 
 function buildFooting() {
+  for (const m of footing.children) m.geometry.dispose();
   footing.clear();
   const parts = [];
   for (const sec of job.sections) {
-    const [ox, oz] = sec.o;
+    const [ox, oz] = sec.o, len = sec.layout === 'corner' ? 0 : wallLen(sec);
     if (sec.layout === 'corner') parts.push([1.22, 0.36, ox + 0.49, oz], [0.36, 0.92, ox + BD / 2, oz + 0.64]);
-    else if (sec.rot) parts.push([0.36, 1.9, ox, oz + 0.745]);
-    else parts.push([1.9, 0.36, ox + 0.745, oz]);
+    else if (sec.rot) parts.push([0.36, len + 0.41, ox, oz + len / 2]);
+    else parts.push([len + 0.41, 0.36, ox + len / 2, oz]);
   }
   for (const [sx, sz, x, z] of parts) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(sx, FOOT_TOP, sz), concrete);
@@ -266,11 +291,14 @@ function buildFooting() {
 function setupJob(i) {
   jobIndex = i; job = content.jobs[i];
   game = createGame(content, job, save.upgrades, Math.random, { robot: save.robot });
-  wall.clear(); beds.clear(); bricks.clear(); drops.length = 0;
+  clearWall(); drops.length = 0; evCount = {};
   buildFooting(); buildLines();
   pallet.position.set(job.pallet[0], 0, job.pallet[1]); pallet.rotation.y = job.pallet[2];
   halves.position.set(job.halves[0], 0, job.halves[1]);
   tub.position.set(job.tub[0], 0, job.tub[1]);
+  lintelStack.visible = lintelHit.visible = !!job.lintels; // a hidden parent doesn't stop the raycast, so hide the hitbox too
+  if (job.lintels) { lintelStack.position.set(job.lintels[0], 0, job.lintels[1]); lintelStack.rotation.y = job.lintels[2]; }
+  windowFrame.visible = false;
   const [cx, cz, yaw, pitch] = job.sections[0].camera;
   camera.position.set(cx, 1.62, cz); view.yaw = yaw; view.pitch = pitch; camTween = null;
   robot.group.visible = game.state.robot.on;
@@ -281,7 +309,7 @@ function setupJob(i) {
 
 // a new brick mesh for a slot; real walls vary in tone, some bricks fired darker, some paler
 function newBrick(sl) {
-  const b = (sl.kind === 'half' ? M.brick_half : M.brick_nf).clone();
+  const b = (sl.kind === 'half' ? M.brick_half : sl.kind === 'lintel' ? M.lintel : M.brick_nf).clone();
   b.rotation.y = sl.rot ? Math.PI / 2 : 0;
   b.traverse(o => {
     if (!o.isMesh) return;
@@ -315,6 +343,10 @@ for (const kind of ['full', 'half']) for (let k = 0; k < 2; k++) {
   b.traverse(o => { o.castShadow = false; });
   armL.add(b); handBricks[kind].push(b);
 }
+const handLintel = M.lintel.clone(); // carried across the view, one at a time
+handLintel.position.set(0.17, -0.012 - BH, -0.3);
+handLintel.traverse(o => { o.castShadow = false; });
+armL.add(handLintel);
 
 const anims = [];
 const play = (arm, kind, dur) => anims.push({ arm, kind, t0: performance.now(), dur });
@@ -439,7 +471,7 @@ function flyText(text, cls) {
   setTimeout(() => el.remove(), 1100);
 }
 const euro = n => '€' + n.toFixed(2);
-let lastAction = null;
+let lastAction = null, evCount = {}; // evCount: rules events handled this job, read by QA
 function updateHUD() {
   const s = game.state, now = nowS(), a = game.nextAction(now), sl = s.cur === null ? undefined : game.slots[s.cur];
   lastAction = a;
@@ -447,19 +479,22 @@ function updateHUD() {
   const many = job.sections.length > 1;
   if (sl) {
     const perCourse = game.slots.filter(x => x.section === sl.section && x.course === sl.course).length;
-    $('where').textContent = `${job.name}${many ? ` · wall ${sl.section + 1} of ${job.sections.length}` : ''} · course ${sl.course + 1} of ${job.sections[sl.section].courses} · brick ${sl.i + 1} of ${perCourse}`;
+    $('where').textContent = `${job.name}${many ? ` · wall ${sl.section + 1} of ${job.sections.length}` : ''} · course ${sl.course + 1} of ${job.sections[sl.section].courses} · ${sl.kind === 'lintel' ? 'lintel' : `brick ${sl.i + 1} of ${perCourse}`}`;
   } else $('where').textContent = `${job.name} · ${s.done ? 'finished' : 'the robot is on it'}`;
   $('belt').hidden = !touchMode;
+  $('belt').querySelector('[data-act="lintels"]').hidden = !job.lintels;
+  const want = { tub: a === 'load', pallet: a === 'grab-full', halves: a === 'grab-half', lintels: a === 'grab-lintel' };
+  if (a === 'swap' && sl) want[{ half: 'halves', lintel: 'lintels' }[sl.kind]] = true;
   for (const b of $('belt').querySelectorAll('[data-act]')) {
     const k = b.dataset.act;
-    b.classList.toggle('on', (k === 'tub' && s.trowel) || (k === 'pallet' && s.hand === 'full') || (k === 'halves' && s.hand === 'half'));
-    b.classList.toggle('want', (k === 'tub' && a === 'load') || (k === 'pallet' && a === 'grab-full') || (k === 'halves' && (a === 'grab-half' || (a === 'swap' && sl && sl.kind === 'half'))));
+    b.classList.toggle('on', (k === 'tub' && s.trowel) || (k === 'pallet' && s.hand === 'full') || (k === 'halves' && s.hand === 'half') || (k === 'lintels' && s.hand === 'lintel'));
+    b.classList.toggle('want', !!want[k]);
   }
   $('ffBtn').hidden = a !== 'watch';
   $('ffBtn').textContent = fastForward ? 'Speed ×4 · on' : 'Speed ×4';
-  const canHand = game.canHandOver();
-  $('hint').hidden = !canHand;
-  $('hint').textContent = content.clipboard.handover;
+  const canHand = game.canHandOver(), onLintel = !!sl && sl.kind === 'lintel';
+  $('hint').hidden = !canHand && !onLintel;
+  $('hint').textContent = canHand ? content.clipboard.handover : content.clipboard.lintelCall;
   $('handBtn').hidden = !canHand;
   const rb = s.robot;
   $('robotLine').hidden = !rb.on;
@@ -492,6 +527,7 @@ function updateHUD() {
   brickHit.visible = !!s.setting;
   fullStack.count = s.stock.full; halfStack.count = s.stock.half;
   for (const k of ['full', 'half']) handBricks[k].forEach((b, n) => { b.visible = s.hand === k && n < s.handN; });
+  handLintel.visible = s.hand === 'lintel';
   lump.visible = s.trowel;
   if (a === 'scrape') fact('mortarOff');
 }
@@ -510,11 +546,13 @@ function labelFor(act) {
   if (act === 'tub') return s.trowel ? ['Trowel is loaded', false] : ['Load mortar', true];
   if (act === 'pallet') return s.hand === 'full' ? ['Hand is full', false] : [s.hand ? 'Swap for a full brick' : 'Take a brick', true];
   if (act === 'halves') return s.hand === 'half' ? ['Hand is full', false] : [s.hand ? 'Swap for a half brick' : 'Take a half brick', true];
+  if (act === 'lintels') return s.hand === 'lintel' ? ['Hand is full', false] : !s.stock.lintel ? ['No lintels left', false] : [s.hand ? 'Swap for the lintel' : 'Take the lintel', true];
   if (act === 'slot') {
     if (!sl) return ['', false];
     if (a === 'load') return ['Needs mortar first', false];
     if (a === 'spread') return ['Spread mortar bed', true];
     if (a === 'scrape') return ['Scrape off stiff mortar', true];
+    if (sl.kind === 'lintel') return s.hand === 'lintel' ? ['Set the lintel', true] : ['Needs the lintel', false];
     if (!s.hand) return ['Take a brick first', false];
     return s.hand === sl.kind ? ['Lay brick', true] : [`Needs a ${sl.kind} brick`, false];
   }
@@ -535,6 +573,7 @@ function act(target, hold, u = 0.5) {
   if (target === 'tub') r = game.load(now);
   else if (target === 'pallet') r = game.grab('full', now);
   else if (target === 'halves') r = game.grab('half', now);
+  else if (target === 'lintels') r = game.grab('lintel', now);
   else if (target === 'slot') {
     const a = game.nextAction(now);
     r = a === 'spread' || a === 'load' ? game.spread(now) : a === 'scrape' ? game.scrape(now) : game.place(now);
@@ -543,14 +582,21 @@ function act(target, hold, u = 0.5) {
   handle(r, now);
 }
 
+// window wall facts, each told once: the first reveal, the lintel, the first brick over the lintel
+function openingFacts(i) {
+  const sl = game.slots[i];
+  if (sl.reveal) fact('reveal');
+  if (sl.kind === 'lintel') fact('lintel');
+  else if (game.slots.some(x => x.kind === 'lintel' && x.section === sl.section && x.course === sl.course - 1)) fact('overLintel');
+}
 // turn a rules event into visuals, sound and HUD
 function handle(r, now) {
-
+  evCount[r.event] = (evCount[r.event] || 0) + 1;
   if (r.event === 'loaded') { play('R', 'scoop', 420); sfx('squish'); fact('firstLoad'); }
   if (r.event === 'spread') { play('R', 'spread', 480); sfx('scrape'); r.slots.forEach(i => bedFor(i, 6, now)); }
   if (r.event === 'scraped') {
     play('R', 'spread', 480); sfx('scrape');
-    r.slots.forEach(i => { const b = beds.get(i); if (b) { wall.remove(b.mesh); beds.delete(i); } });
+    r.slots.forEach(i => { const b = beds.get(i); if (b) { wall.remove(b.mesh); b.mesh.material.dispose(); beds.delete(i); } });
   }
   if (r.event === 'grabbed') { play('L', 'reach', 380); sfx('clack'); }
   if (r.event === 'placed') {
@@ -568,7 +614,7 @@ function handle(r, now) {
   }
   if (r.event === 'hit') setBrickHeight(r.slot, r.a, r.b);
   if (r.event === 'sunk') {
-    wall.remove(bricks.get(r.slot)); bricks.delete(r.slot);
+    wall.remove(bricks.get(r.slot)); disposeMats(bricks.get(r.slot)); bricks.delete(r.slot);
     bedFor(r.slot, 6, now);
     setTimeout(() => sfx('sunk'), 90);
     flyText('Too low. Re-lay it', 'bad'); fact('firstSunk');
@@ -580,6 +626,7 @@ function handle(r, now) {
     if (r.proud) { flyText(`Set proud: mortar went off +${euro(r.pay)}`, 'rough'); fact('proud'); }
     else { flyText(`${r.grade[0].toUpperCase() + r.grade.slice(1)} +${euro(r.pay)}${r.mult > 1 ? ` ×${r.mult}` : ''}`, r.grade); fact('firstSet'); }
     if (r.streak === 4) fact('streak');
+    openingFacts(r.slot);
     if (r.course) {
       setTimeout(() => sfx('course'), 350);
       const c = r.course.index, note = r.course.section === 0 ? job.afterCourse[String(c)] : undefined;
@@ -598,10 +645,19 @@ function handle(r, now) {
   }
   if (r.event === 'robotLaid') {
     robotLay(r.slot, now);
+    openingFacts(r.slot);
     if (r.course) raiseLine(r.course.section, r.course.index);
     if (r.sectionDone !== undefined) { setTimeout(() => sfx('course'), 250); toast(`Wall ${r.sectionDone + 1} finished.`, 'Robot'); }
     if (r.robotDrive !== undefined) driveRobot(r.robotDrive, now);
     if (r.done) finish();
+  }
+  if (r.event === 'lintelCall') {
+    // the robot stopped under the lintel course: the wall is yours again. You walk over now if you were
+    // free (moveTo), else when your current wall is done (moveTo on 'set').
+    sfx('whoosh');
+    toast(content.clipboard.lintelCall, 'Robot');
+    if (r.moveTo !== undefined) travelTo(r.moveTo);
+    if (r.robotDrive !== undefined) driveRobot(r.robotDrive, now);
   }
   updateHUD();
 }
@@ -654,6 +710,13 @@ function finish() {
   $('moreSoon').hidden = !!next;
   $('moreSoon').textContent = `More jobs are on the way: ${content.comingNext.join(', ')}.`;
   renderShop();
+  // the window frame goes into the opening (facing +z, origin at the bottom centre) before the admire shot
+  job.sections.forEach(sec => (sec.openings || []).forEach(op => {
+    const g = gapOf(op), mid = (g.a0 + g.a1) / 2;
+    windowFrame.position.set(sec.o[0] + (sec.rot ? 0 : mid), g.y0 + W.bedJoint, sec.o[1] + (sec.rot ? mid : 0));
+    windowFrame.rotation.y = sec.rot ? Math.PI / 2 : 0;
+    windowFrame.visible = true;
+  }));
   // admire: hands down, camera eases back to show the whole job, then the card slides in beside it
   playing = false; down = null;
   if (document.pointerLockElement) document.exitPointerLock();
@@ -844,6 +907,7 @@ function followBrick(dt) {
 /* ---------- loop ---------- */
 const clock = new THREE.Clock();
 const fwd = new THREE.Vector3(), side = new THREE.Vector3();
+let frameMs = 0; // main-thread time of the last frame (JS + render call), read by QA
 function frame() {
   const dt = Math.min(0.05, clock.getDelta()), now = performance.now();
   if (playing) {
@@ -904,6 +968,7 @@ function frame() {
   }
   renderer.render(scene, camera);
   if (game.state.setting) placeGauge(); // after render: camera matrices are current
+  frameMs = performance.now() - now;
   requestAnimationFrame(frame);
 }
 
@@ -914,7 +979,7 @@ $('startBtn').disabled = false;
 requestAnimationFrame(frame);
 // console hook for play-testing: __bbb.act('tub'), __bbb.game.state …
 window.__bbb = {
-  act, handOver: doHandOver, camMoving: () => !!camTween && !camTween.admire, toggleFast, clock: gameClock, get game() { return game; }, setupJob, begin, get save() { return save; }, camera, scene, view, renderer,
+  act, handOver: doHandOver, camMoving: () => !!camTween && !camTween.admire, toggleFast, clock: gameClock, get game() { return game; }, setupJob, begin, get save() { return save; }, camera, scene, view, renderer, content,
   look: (yaw, pitch) => { view.yaw = yaw; view.pitch = pitch; },
   // measurements for the automated acceptance run (qa/acceptance.mjs), in CSS px
   qa: {
@@ -923,6 +988,18 @@ window.__bbb = {
     wallCenter() {
       const c = game.slots.reduce((a, s) => a.add(new THREE.Vector3(s.x, slotY(s) + BH / 2, s.z)), new THREE.Vector3()).divideScalar(game.slots.length).project(camera);
       return [(c.x + 1) / 2 * canvas.clientWidth, (1 - c.y) / 2 * canvas.clientHeight];
+    },
+    get events() { return evCount; },
+    get frameMs() { return frameMs; },
+    frameIn: () => windowFrame.visible,
+    // slots whose brick mesh has its centre inside a window opening (should be none)
+    inGap() {
+      const out = [];
+      for (const [i, b] of bricks) {
+        const sec = job.sections[game.slots[i].section], along = sec.rot ? b.position.z - sec.o[1] : b.position.x - sec.o[0], y = b.position.y + BH / 2;
+        for (const op of sec.openings || []) { const g = gapOf(op); if (along > g.a0 && along < g.a1 && y > g.y0 && y < g.y1) out.push(i); }
+      }
+      return out;
     },
   },
   // freeze the current 3D frame into an <img>: screenshot tools can miss a live WebGL canvas

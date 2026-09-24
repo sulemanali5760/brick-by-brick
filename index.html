@@ -108,6 +108,7 @@ button{font:inherit;cursor:pointer}
 .ffBtn{pointer-events:auto;margin-top:8px;font-family:var(--label);font-weight:700;font-size:13px;background:transparent;color:var(--hivis);border:1.5px solid var(--hivis);padding:4px 10px}
 /* touch screens: tool belt along the bottom */
 .belt{position:absolute;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:1fr 1fr 1fr .7fr;gap:8px;pointer-events:auto}
+.belt:has([data-act="lintels"]:not([hidden])){grid-template-columns:1fr 1fr 1fr 1fr .7fr}
 .belt button{font-family:var(--label);font-weight:700;font-size:17px;padding:13px 6px;background:var(--glass);color:var(--paper);border:1.5px solid rgba(244,242,237,.3)}
 .belt button.small{font-size:14px;color:var(--muted)}
 .belt button.want{border-color:var(--hivis);color:var(--hivis)}
@@ -153,7 +154,7 @@ body:has(.belt:not([hidden])) .corner{display:none}
     <div id="cross" hidden></div><div id="label"></div>
     <div id="gauge" class="panel" hidden><div class="side"><div id="gBrick"></div></div><div id="gaugeVal"></div></div>
     <button id="handBtn" class="handBtn" hidden>Hand over to the robot <kbd>H</kbd></button>
-    <div id="belt" class="belt" hidden><button data-act="tub">Mortar</button><button data-act="pallet">Brick</button><button data-act="halves">Half</button><button data-act="sound" class="small">Sound</button></div>
+    <div id="belt" class="belt" hidden><button data-act="tub">Mortar</button><button data-act="pallet">Brick</button><button data-act="halves">Half</button><button data-act="lintels" hidden>Lintel</button><button data-act="sound" class="small">Sound</button></div>
     <div class="corner"><button id="mute">Sound on</button><span id="lockHint" hidden>Click the view to look around · Esc frees the mouse</span></div>
   </div>
 

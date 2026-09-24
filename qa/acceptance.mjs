@@ -20,13 +20,18 @@ async function shot(page, name) {
   try { await page.screenshot({ path: `${OUT}/${name}.png`, timeout: 45000 }); }
   catch (e) { perf.push({ at: name, note: 'screenshot failed: ' + String(e.message).split(/\r?\n/)[0] }); }
 }
-// how long one frame takes right now (ms); 30 s means the page is stuck
+// how long a frame takes right now (ms): the median of 10 frame intervals, since a single sample is
+// mostly noise on CI (GC, the runner), and the game's own main-thread time for its last frame.
+// 30 s means the page is stuck.
 async function frameTime(page, at) {
   const ms = await Promise.race([
-    page.evaluate(() => new Promise(r => { const t0 = performance.now(); requestAnimationFrame(() => requestAnimationFrame(() => r((performance.now() - t0) / 2))); })),
+    page.evaluate(() => new Promise(r => {
+      const ts = [], f = t => { ts.push(t); if (ts.length < 11) requestAnimationFrame(f); else r(ts.slice(1).map((x, i) => x - ts[i]).sort((a, b) => a - b)[5]); };
+      requestAnimationFrame(f);
+    })),
     new Promise(r => setTimeout(() => r(30000), 30000)),
   ]);
-  const info = await Promise.race([page.evaluate(() => ({ calls: __bbb.renderer.info.render.calls, tris: __bbb.renderer.info.render.triangles, geos: __bbb.renderer.info.memory.geometries, meshes: __bbb.scene.children.length })), new Promise(r => setTimeout(() => r(null), 5000))]);
+  const info = await Promise.race([page.evaluate(() => ({ js: Math.round(__bbb.qa.frameMs), calls: __bbb.renderer.info.render.calls, tris: __bbb.renderer.info.render.triangles, geos: __bbb.renderer.info.memory.geometries, meshes: __bbb.scene.children.length })), new Promise(r => setTimeout(() => r(null), 5000))]);
   perf.push({ at, ms: Math.round(ms), ...info });
 }
 
@@ -54,7 +59,8 @@ function installBot() {
       } else if (a === 'load') __bbb.act('tub');
       else if (a === 'spread' || a === 'scrape' || a === 'place') __bbb.act('slot');
       else if (a === 'grab-full') __bbb.act('pallet');
-      else if (a === 'grab-half' || a === 'swap') __bbb.act(g.slots[st.cur].kind === 'half' ? 'halves' : 'pallet');
+      else if (a === 'grab-lintel') __bbb.act('lintels');
+      else if (a === 'grab-half' || a === 'swap') __bbb.act({ half: 'halves', lintel: 'lintels' }[g.slots[st.cur].kind] ?? 'pallet');
       else await frame(); // 'watch' (robot working) or a camera move in progress
       if (a !== 'watch' && __bbb.camMoving()) await frame();
     }
@@ -146,6 +152,27 @@ for (const v of VIEWS) {
     check(v.name, 'A10 fast-forward ×4 while watching', !!a8.ff && a8.ff.normal > 0 && a8.ff.fast >= 3 * a8.ff.normal, `game seconds in 10 frames: ×1 ${a8.ff?.normal}, ×4 ${a8.ff?.fast}`);
     await page.waitForTimeout(4200);
     await shot(page, `${v.name}-5-yard`);
+
+    // A11 (desktop): Window wall with hand-over: the robot calls you back for the lintel, you set it,
+    // the opening stays empty and the frame goes in at the end
+    const wi = await page.evaluate(() => __bbb.content.jobs.findIndex(j => j.id === 'window'));
+    if (wi < 0) check(v.name, 'A11 window wall', false, 'no job with id "window" in content.json');
+    else {
+      await page.evaluate(i => { __bbb.save.unlocked = i + 1; document.getElementById('end').hidden = true; __bbb.begin(i); __bbb.toggleFast(); document.getElementById('toast').hidden = true; }, wi);
+      await page.waitForTimeout(600);
+      await page.evaluate(installBot);
+      const a11 = await page.evaluate(async () => {
+        const r = await window.qaPlay({ handOver: true });
+        const g = __bbb.game, li = g.slots.findIndex(x => x.kind === 'lintel'), ev = __bbb.qa.events;
+        return { ...r, lintel: li, byMe: li >= 0 && g.state.results.some(x => x.slot === li && x.by !== 'robot'), gap: __bbb.qa.inGap(), frame: __bbb.qa.frameIn(), handovers: ev.handover || 0, calls: ev.lintelCall || 0 };
+      });
+      check(v.name, 'A11 window wall: hand-over, lintel by you, gap empty, frame in',
+        a11.done && a11.handovers >= 1 && a11.calls >= 1 && a11.byMe && a11.gap.length === 0 && a11.frame,
+        `done=${a11.done}, handovers=${a11.handovers}, lintelCalls=${a11.calls}, lintel slot ${a11.lintel} by you=${a11.byMe}, bricks in gap=${JSON.stringify(a11.gap)}, frame=${a11.frame}`);
+      await frameTime(page, `${v.name} after window wall`);
+      await page.waitForTimeout(4200);
+      await shot(page, `${v.name}-6-window`);
+    }
   }
   check(v.name, 'no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
@@ -154,7 +181,7 @@ await browser.close();
 
 const table = ['| view | check | result | notes |', '|---|---|---|---|', ...results.map(r => `| ${r.view} | ${r.id} | ${r.ok ? '✅' : '❌'} | ${r.note.replace(/\|/g, '/')} |`)].join('\n');
 console.log(table);
-const ptable = ['| checkpoint | frame ms | draw calls | triangles | geometries | notes |', '|---|---|---|---|---|---|', ...perf.map(p => `| ${p.at} | ${p.ms ?? ''} | ${p.calls ?? ''} | ${p.tris ?? ''} | ${p.geos ?? ''} | ${p.note ?? ''} |`)].join('\n');
+const ptable = ['| checkpoint | frame ms (median of 10) | game JS ms | draw calls | triangles | geometries | notes |', '|---|---|---|---|---|---|---|', ...perf.map(p => `| ${p.at} | ${p.ms ?? ''} | ${p.js ?? ''} | ${p.calls ?? ''} | ${p.tris ?? ''} | ${p.geos ?? ''} | ${p.note ?? ''} |`)].join('\n');
 console.log(ptable);
 writeFileSync(`${OUT}/results.json`, JSON.stringify({ results, perf }, null, 2));
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Acceptance run\n\n${table}\n\n## Performance (software GL, ?q=low)\n\n${ptable}\n\nScreenshots: the qa-screenshots artifact.\n`);
