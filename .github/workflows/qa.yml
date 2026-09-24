@@ -1,10 +1,17 @@
 # Automated acceptance run: headless Chrome (WebGL via SwiftShader) plays the build at desktop,
 # small-window and phone sizes, checks the acceptance criteria and keeps screenshots.
 name: qa
-on: [push, workflow_dispatch]
+on:
+  push:
+    paths-ignore: ['docs/**', '**.md']
+  workflow_dispatch:
+concurrency: # a newer push to the same branch cancels the older run
+  group: qa-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   acceptance:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

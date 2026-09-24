@@ -128,11 +128,12 @@ for (const v of VIEWS) {
         await new Promise(r => setTimeout(r, 2300)); // camera walks to the next wall
         const g = __bbb.game;
         log.push({ wall: g.state.cur === null ? null : g.slots[g.state.cur].section, yaw: +__bbb.view.yaw.toFixed(2), robotQueue: [...g.state.robot.queue] });
-        if (g.state.cur === null && !window.qaFF) { // A10: watching the robot, compare x1 and x4 over the same real time
-          const count = () => g.state.results.filter(r => r.by === 'robot').length;
-          const c0 = count(); await new Promise(r => setTimeout(r, 3000)); const c1 = count();
-          __bbb.toggleFast(); await new Promise(r => setTimeout(r, 3000)); const c2 = count(); __bbb.toggleFast();
-          window.qaFF = { normal: c1 - c0, fast: c2 - c1 };
+        if (g.state.cur === null && !window.qaFF) { // A10: watching the robot, game time per frame at x1 and x4
+          // measured per frame, not per real second: software GL on CI runs ~3 fps and each frame is capped at 50 ms
+          const frames = async n => { const t0 = __bbb.clock.t; for (let i = 0; i < n; i++) await new Promise(r => requestAnimationFrame(r)); return __bbb.clock.t - t0; };
+          const normal = await frames(10);
+          __bbb.toggleFast(); const fast = await frames(10); __bbb.toggleFast();
+          window.qaFF = { normal: +normal.toFixed(3), fast: +fast.toFixed(3) };
         }
       };
       const r = await window.qaPlay({ handOver: true, onHandOver: 'qaAfterHand' });
@@ -142,7 +143,7 @@ for (const v of VIEWS) {
     const moved = a8.log.length >= 2 && a8.log[0].wall === 1 && Math.abs(a8.log[0].yaw - 1.57) < 0.1;
     check(v.name, 'A8 hand over, walk on, robot finishes', a8.done && moved && a8.robot > 0, `done=${a8.done}, handovers=${JSON.stringify(a8.log)}, by you ${a8.mine}, by robot ${a8.robot}`);
     await frameTime(page, `${v.name} after yard walls`);
-    check(v.name, 'A10 fast-forward ×4 while watching', !!a8.ff && a8.ff.fast >= 3 * Math.max(1, a8.ff.normal), `robot bricks in 3 s: ×1 ${a8.ff?.normal}, ×4 ${a8.ff?.fast}`);
+    check(v.name, 'A10 fast-forward ×4 while watching', !!a8.ff && a8.ff.normal > 0 && a8.ff.fast >= 3 * a8.ff.normal, `game seconds in 10 frames: ×1 ${a8.ff?.normal}, ×4 ${a8.ff?.fast}`);
     await page.waitForTimeout(4200);
     await shot(page, `${v.name}-5-yard`);
   }
