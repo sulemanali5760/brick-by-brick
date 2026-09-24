@@ -412,12 +412,64 @@ def make_fence():
     export("bauzaun", [join([*frame, wires, *feet], "bauzaun", smooth=False)])
 
 
+def lintel_parts(clay, concrete, y=0.0, z=0.0):
+    """Clay-shell precast lintel (Flachsturz) 0.99 x 0.115 x 0.071 m, long axis x: a clay U-shell
+    (12 mm walls) around a concrete core that shows on the top and at both ends."""
+    u = [(-0.0575, 0), (0.0575, 0), (0.0575, 0.071), (0.0455, 0.071),
+         (0.0455, 0.012), (-0.0455, 0.012), (-0.0455, 0.071), (-0.0575, 0.071)]
+    shell = flat("shell", u, 0.99, clay, plane="XZ")  # U profile across y, solidified along the length
+    shell.rotation_euler.z = math.radians(90)
+    shell.location = (0, y, z)
+    shell = join([shell], "shell", smooth=False)
+    cube_uv(shell, 0.24)
+    core = box("core", (0.99, 0.091, 0.059), (0, y, z + 0.0415), concrete)
+    return [shell, core]
+
+
+def lintel_mats():
+    # Reuses the clay texture make_bricks() saved (our own procedural image), so the rng stays untouched.
+    return (mat("lintel_clay", "#A8432A", rough=0.9, image=SRC / "brick_diffuse.png"),
+            mat("lintel_concrete", "#8E8C87", rough=0.95))
+
+
+def make_lintels():
+    reset()
+    export("lintel", [join(lintel_parts(*lintel_mats()), "lintel", smooth=False)])
+    # Stack: 3 lintels side by side on two 60 mm timber bearers.
+    reset()
+    clay, concrete = lintel_mats()
+    wood = mat("bearer_wood", "#C9A878", rough=0.85, image=SRC / "pallet_wood.png")
+    parts = [box("bearer", (0.06, 0.42, 0.06), (sx * 0.3, 0, 0.03), wood, uv=0.5) for sx in (-1, 1)]
+    for y in (-0.125, 0, 0.125):
+        parts += lintel_parts(clay, concrete, y, 0.06)
+    export("lintel_stack", [join(parts, "lintel_stack", smooth=False)])
+
+
+def make_window():
+    """Timber window 0.50 wide x 0.49 high x 0.07 deep, origin at the bottom centre.
+    Front faces Blender -y, which is +z in glTF / three.js; the sash and glass sit towards the front."""
+    reset()
+    timber = mat("window_timber", "#5A3820", rough=0.5)
+    glass = mat("glass", "#A9C6D2", rough=0.05)
+    glass.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 0.3
+    f, s, sy = 0.045, 0.035, -0.01  # frame face width, sash face width, sash centre (front = -y)
+    parts = [box("head", (0.5, 0.07, f), (0, 0, 0.49 - f / 2), timber, bevel=0.003),
+             box("sill", (0.5, 0.07, f), (0, 0, f / 2), timber, bevel=0.003)]
+    parts += [box("jamb", (f, 0.07, 0.49 - 2 * f), (sx * (0.25 - f / 2), 0, 0.245), timber, bevel=0.003) for sx in (-1, 1)]
+    w, h = 0.5 - 2 * f, 0.49 - 2 * f  # opening 0.41 x 0.40
+    parts += [box("sash", (w, 0.05, s), (0, sy, zc), timber) for zc in (f + s / 2, 0.49 - f - s / 2)]
+    parts += [box("sash", (s, 0.05, h - 2 * s), (sx * (w / 2 - s / 2), sy, 0.245), timber) for sx in (-1, 1)]
+    pane = box("pane", (w - 2 * s + 0.01, 0.006, h - 2 * s + 0.01), (0, sy, 0.245), glass)
+    export("window_frame", [join(parts, "window_frame", smooth=False), join([pane], "window_glass", smooth=False)])
+
+
 # ---------- lineup: re-import every export and render a check image ----------
 def lineup():
     reset()
     report = {}
     x = 0.0
-    order = ["fp_arms", "trowel", "brick_nf", "brick_half", "line_pin", "spirit_level", "mortar_tub", "pallet_euro", "robot"]
+    order = ["fp_arms", "trowel", "brick_nf", "brick_half", "line_pin", "spirit_level", "mortar_tub", "pallet_euro", "robot",
+             "lintel", "lintel_stack", "window_frame"]
     for name in order:
         before = set(bpy.context.scene.objects)
         bpy.ops.import_scene.gltf(filepath=str(OUT / f"{name}.gltf"))
@@ -485,4 +537,6 @@ make_line_pin()
 make_level()
 make_fence()
 make_robot()
+make_lintels()
+make_window()
 lineup()

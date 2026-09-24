@@ -22,6 +22,9 @@ Two pipelines, split by where a file comes from:
 | `spirit_level.gltf` | 600 mm spirit level | Blender (script) | 348 | 36 KB | |
 | `robot.gltf` | Tracked bricklaying robot: `RobotBase` (tracks, chassis, hazard-stripe bumper) and `RobotArm` (turntable, mast, boom, gripper, beacon) | Blender (script) | 1220 | 116 KB | **origin = bottom centre**, boom towards +Y; `RobotArm` turns about the vertical axis through the origin; gripper tip at (0, 1.0, 0.93) |
 | `bauzaun.gltf` | Mobile site fence panel 3.5 × 2.0 m on feet | Blender (script) | 896 | 82 KB | wire mesh is real geometry, no alpha tricks |
+| `lintel.gltf` | Clay-shell precast lintel (Flachsturz) 990 × 115 × 71 mm | Blender (script) | 40 | 145 KB | long axis +x like the brick. Clay U-shell (12 mm walls, brick clay texture) around a flat-grey concrete core that shows on top and at both ends |
+| `lintel_stack.gltf` | 3 lintels side by side on two 60 × 60 mm timber bearers | Blender (script) | 144 | 290 KB | 0.99 × 0.42 × 0.131 m; bearers use the pallet pine texture |
+| `window_frame.gltf` | Timber window 500 wide × 490 high × 70 mm deep: `window_frame` (frame and sash) and `window_glass` | Blender (script) | 492 | 48 KB | **faces +z in glTF / three.js** (Blender −y); sash and glass sit 10 mm towards the front. Glass is `alphaMode: BLEND`, alpha 0.3 |
 | `cement_bag.gltf` | Cement bag | [Poly Haven](https://polyhaven.com/a/cement_bag), CC0 | 844 | 1884 KB | re-origined by the CI converter |
 | `measuring_tape_01.gltf` | Tape measure | [Poly Haven](https://polyhaven.com/a/measuring_tape_01), CC0 | 2868 | 582 KB | set dressing |
 
